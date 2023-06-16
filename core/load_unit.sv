@@ -26,6 +26,7 @@ module load_unit import ariane_pkg::*; #(
     // load unit output port
     output logic                     valid_o,
     output logic [TRANS_ID_BITS-1:0] trans_id_o,
+    output logic [riscv::VLEN-1:0]   pc_o,
     output riscv::xlen_t             result_o,
     output exception_t               ex_o,
     // MMU -> Address Translation
@@ -55,6 +56,7 @@ module load_unit import ariane_pkg::*; #(
         logic [TRANS_ID_BITS-1:0]         trans_id;
         logic [riscv::XLEN_ALIGN_BYTES-1:0] address_offset;
         fu_op                             operation;
+	logic [riscv::VLEN-1:0] 	  ld_pc;
     } load_data_d, load_data_q, in_data;
 
     // page offset is defined as the lower 12 bits, feed through for address checker
@@ -65,7 +67,7 @@ module load_unit import ariane_pkg::*; #(
     assign req_port_o.data_we = 1'b0;
     assign req_port_o.data_wdata = '0;
     // compose the queue data, control is handled in the FSM
-    assign in_data = {lsu_ctrl_i.trans_id, lsu_ctrl_i.vaddr[riscv::XLEN_ALIGN_BYTES-1:0], lsu_ctrl_i.operation};
+    assign in_data = {lsu_ctrl_i.trans_id, lsu_ctrl_i.vaddr[riscv::XLEN_ALIGN_BYTES-1:0], lsu_ctrl_i.operation, lsu_ctrl_i.pc}; // for RM
     // output address
     // we can now output the lower 12 bit as the index to the cache
     assign req_port_o.address_index = lsu_ctrl_i.vaddr[ariane_pkg::DCACHE_INDEX_WIDTH-1:0];
@@ -274,6 +276,7 @@ module load_unit import ariane_pkg::*; #(
         ex_o.valid = 1'b0;
         // output the queue data directly, the valid signal is set corresponding to the process above
         trans_id_o = load_data_q.trans_id;
+	pc_o = load_data_q.ld_pc;   // for RM
         // we got an rvalid and are currently not flushing and not aborting the request
         if (req_port_i.data_rvalid && state_q != WAIT_FLUSH) begin
             // we killed the request

@@ -67,7 +67,8 @@ module store_unit import ariane_pkg::*; (
     riscv::xlen_t st_data_n, st_data_q;
     logic [(riscv::XLEN/8)-1:0]   st_be_n,        st_be_q;
     logic [1:0]   st_data_size_n, st_data_size_q;
-    amo_t         amo_op_d,       amo_op_q;
+    amo_t         amo_op_d,       amo_op_q; 
+    logic [riscv::VLEN-1:0] st_pc_n, st_pc_q;    // for RM
 
     logic [TRANS_ID_BITS-1:0] trans_id_n, trans_id_q;
 
@@ -83,6 +84,7 @@ module store_unit import ariane_pkg::*; (
         pop_st_o               = 1'b0;
         ex_o                   = ex_i;
         trans_id_n             = lsu_ctrl_i.trans_id;
+	st_pc_n                = lsu_ctrl_i.pc; 	//for RM
         state_d                     = state_q;
 
         case (state_q)
@@ -236,6 +238,7 @@ module store_unit import ariane_pkg::*; (
         .data_i                ( st_data_q              ),
         .be_i                  ( st_be_q                ),
         .data_size_i           ( st_data_size_q         ),
+	.pc_i                  ( st_pc_q                ),   
         .req_port_i            ( req_port_i             ),
         .req_port_o            ( req_port_o             )
     );
@@ -265,6 +268,7 @@ module store_unit import ariane_pkg::*; (
             st_be_q        <= '0;
             st_data_q      <= '0;
             st_data_size_q <= '0;
+	    st_pc_q        <= '0;
             trans_id_q     <= '0;
             amo_op_q       <= AMO_NONE;
         end else begin
@@ -273,6 +277,7 @@ module store_unit import ariane_pkg::*; (
             st_data_q      <= st_data_n;
             trans_id_q     <= trans_id_n;
             st_data_size_q <= st_data_size_n;
+	    st_pc_q        <= st_pc_n; 
             amo_op_q       <= amo_op_d;
         end
     end

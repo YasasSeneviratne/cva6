@@ -140,7 +140,7 @@ package ariane_pkg;
     localparam ISSUE_WIDTH = 1;
 
     // depth of store-buffers, this needs to be a power of two
-    localparam int unsigned DEPTH_SPEC   = 4;
+    localparam int unsigned DEPTH_SPEC   = int'(cva6_config_pkg::CVA6ConfigSpecStoreBuffDepth);
 
     localparam int unsigned DCACHE_TYPE = int'(cva6_config_pkg::CVA6ConfigDcacheType);
     // if DCACHE_TYPE = cva6_config_pkg::WT
@@ -149,7 +149,7 @@ package ariane_pkg;
     // to longer paths into the commit stage
     // if DCACHE_TYPE = cva6_config_pkg::WB
     // allocate more space for the commit buffer to be on the save side, this needs to be a power of two
-    localparam int unsigned DEPTH_COMMIT = (DCACHE_TYPE == int'(cva6_config_pkg::WT)) ? 4 : 8;
+    localparam int unsigned DEPTH_COMMIT = (DCACHE_TYPE == int'(cva6_config_pkg::WT)) ? int'(cva6_config_pkg::CVA6ConfigStoreBuffDepth) : 8;
 
     localparam bit FPGA_EN = cva6_config_pkg::CVA6ConfigFPGAEn; // Is FPGA optimization of CV32A6
 
@@ -649,6 +649,7 @@ package ariane_pkg;
         fu_t                            fu;
         fu_op                           operation;
         logic [TRANS_ID_BITS-1:0]       trans_id;
+	logic [riscv::VLEN-1:0]   pc;  //for RM
     } lsu_ctrl_t;
 
     // ---------------
@@ -661,6 +662,22 @@ package ariane_pkg;
         branchpredict_sbe_t     branch_predict; // this field contains branch prediction information regarding the forward branch path
         exception_t             ex;             // this field contains exceptions which might have happened earlier, e.g.: fetch exceptions
     } fetch_entry_t;
+
+
+
+
+    // ---------------
+    // Runtime Monitor
+    // ---------------
+
+
+    typedef struct packed {
+        logic [cva6_config_pkg::CVA6ConfigRMLanes-1:0]     	lane;       	// Runtime monitor lane the instruction events need to be forwarded to
+        logic 			   				monitor_ins;    // if this is a monitored instruction?
+    } runtime_monitor_ctrl;
+
+
+
 
     // ---------------
     // ID/EX/WB Stage
@@ -696,7 +713,11 @@ package ariane_pkg;
         logic [(riscv::XLEN/8)-1:0] lsu_rmask;   // information needed by RVFI
         logic [(riscv::XLEN/8)-1:0] lsu_wmask;   // information needed by RVFI
         riscv::xlen_t               lsu_wdata;   // information needed by RVFI
+	runtime_monitor_ctrl	    rm_cnt;
+
     } scoreboard_entry_t;
+
+
 
     // ---------------
     // MMU instanciation

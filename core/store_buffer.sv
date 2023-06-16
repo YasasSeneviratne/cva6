@@ -39,6 +39,7 @@ module store_buffer import ariane_pkg::*; (
     input  logic [(riscv::XLEN/8)-1:0]   be_i,            // byte enable in
     input  logic [1:0]   data_size_i,     // type of request we are making (e.g.: bytes to write)
 
+    input  logic [riscv::VLEN-1:0]    pc_i,          // for RM     
     // D$ interface
     input  dcache_req_o_t req_port_i,
     output dcache_req_i_t req_port_o
@@ -53,6 +54,7 @@ module store_buffer import ariane_pkg::*; (
         logic [(riscv::XLEN/8)-1:0]  be;
         logic [1:0]                  data_size;
         logic                        valid;     // this entry is valid, we need this for checking if the address offset matches
+	logic [riscv::VLEN-1:0] pc;         // for RM        
     } speculative_queue_n [DEPTH_SPEC-1:0], speculative_queue_q [DEPTH_SPEC-1:0],
       commit_queue_n [DEPTH_COMMIT-1:0],    commit_queue_q [DEPTH_COMMIT-1:0];
 
@@ -88,6 +90,7 @@ module store_buffer import ariane_pkg::*; (
             speculative_queue_n[speculative_write_pointer_q].data      = data_i;
             speculative_queue_n[speculative_write_pointer_q].be        = be_i;
             speculative_queue_n[speculative_write_pointer_q].data_size = data_size_i;
+	    speculative_queue_n[speculative_write_pointer_q].pc        = pc_i;  // for RM
             speculative_queue_n[speculative_write_pointer_q].valid   = 1'b1;
             // advance the write pointer
             speculative_write_pointer_n = speculative_write_pointer_q + 1'b1;
