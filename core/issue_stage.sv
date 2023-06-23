@@ -38,6 +38,7 @@ module issue_stage import ariane_pkg::*; #(
     output logic                                     is_compressed_instr_o,
     input  logic                                     flu_ready_i,
     output logic                                     alu_valid_o,
+    output runtime_monitor_ctrl	     		     rm_o,
     // ex just resolved our predicted branch, we are ready to accept new requests
     input  logic                                     resolve_branch_i,
 

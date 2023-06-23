@@ -483,6 +483,27 @@ package ariane_pkg;
 
     localparam int unsigned WT_DCACHE_WBUF_DEPTH   = cva6_config_pkg::CVA6ConfigWtDcacheWbufDepth;
 
+
+    // ---------------
+    // Runtime Monitor
+    // ---------------
+
+    localparam int unsigned RM_NUM_LANES = cva6_config_pkg::CVA6ConfigRMLanes;
+    localparam int unsigned RM_NUM_EVENTS = 6;
+    
+    typedef struct packed {
+        logic [$clog2(RM_NUM_LANES)-1:0]     	lane;       	// Runtime monitor lane the instruction events need to be forwarded to
+        logic 			   				monitor_ins;    // if this is a monitored instruction?
+	logic							reset_lane;     // reset lane
+    } runtime_monitor_ctrl;
+	
+    
+    typedef struct packed {
+        logic 			   				probe_val;    // if this is a monitored instruction?
+        logic [$clog2(RM_NUM_LANES)-1:0]  				lane;    // if this is a monitored instruction?
+	logic							reset_lane;     // reset lane
+    } lane_ctrl;
+
     // ---------------
     // EX Stage
     // ---------------
@@ -650,6 +671,7 @@ package ariane_pkg;
         fu_op                           operation;
         logic [TRANS_ID_BITS-1:0]       trans_id;
 	logic [riscv::VLEN-1:0]   pc;  //for RM
+	runtime_monitor_ctrl rm_cnt; // for RM
     } lsu_ctrl_t;
 
     // ---------------
@@ -662,20 +684,6 @@ package ariane_pkg;
         branchpredict_sbe_t     branch_predict; // this field contains branch prediction information regarding the forward branch path
         exception_t             ex;             // this field contains exceptions which might have happened earlier, e.g.: fetch exceptions
     } fetch_entry_t;
-
-
-
-
-    // ---------------
-    // Runtime Monitor
-    // ---------------
-
-
-    typedef struct packed {
-        logic [cva6_config_pkg::CVA6ConfigRMLanes-1:0]     	lane;       	// Runtime monitor lane the instruction events need to be forwarded to
-        logic 			   				monitor_ins;    // if this is a monitored instruction?
-    } runtime_monitor_ctrl;
-
 
 
 

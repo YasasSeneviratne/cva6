@@ -44,7 +44,9 @@ module load_unit import ariane_pkg::*; #(
     // D$ interface
     input dcache_req_o_t             req_port_i,
     output dcache_req_i_t            req_port_o,
-    input  logic                     dcache_wbuffer_not_ni_i
+    input  logic                     dcache_wbuffer_not_ni_i,
+    // RM
+    output runtime_monitor_ctrl	     rm_o
 );
     enum logic [3:0] { IDLE, WAIT_GNT, SEND_TAG, WAIT_PAGE_OFFSET,
                        ABORT_TRANSACTION, ABORT_TRANSACTION_NI, WAIT_TRANSLATION, WAIT_FLUSH,
@@ -57,6 +59,7 @@ module load_unit import ariane_pkg::*; #(
         logic [riscv::XLEN_ALIGN_BYTES-1:0] address_offset;
         fu_op                             operation;
 	logic [riscv::VLEN-1:0] 	  ld_pc;
+	runtime_monitor_ctrl		  ld_rm_cnt;
     } load_data_d, load_data_q, in_data;
 
     // page offset is defined as the lower 12 bits, feed through for address checker
@@ -67,7 +70,7 @@ module load_unit import ariane_pkg::*; #(
     assign req_port_o.data_we = 1'b0;
     assign req_port_o.data_wdata = '0;
     // compose the queue data, control is handled in the FSM
-    assign in_data = {lsu_ctrl_i.trans_id, lsu_ctrl_i.vaddr[riscv::XLEN_ALIGN_BYTES-1:0], lsu_ctrl_i.operation, lsu_ctrl_i.pc}; // for RM
+    assign in_data = {lsu_ctrl_i.trans_id, lsu_ctrl_i.vaddr[riscv::XLEN_ALIGN_BYTES-1:0], lsu_ctrl_i.operation, lsu_ctrl_i.pc, lsu_ctrl_i.rm_cnt}; // for RM
     // output address
     // we can now output the lower 12 bit as the index to the cache
     assign req_port_o.address_index = lsu_ctrl_i.vaddr[ariane_pkg::DCACHE_INDEX_WIDTH-1:0];
@@ -277,6 +280,7 @@ module load_unit import ariane_pkg::*; #(
         // output the queue data directly, the valid signal is set corresponding to the process above
         trans_id_o = load_data_q.trans_id;
 	pc_o = load_data_q.ld_pc;   // for RM
+	rm_o = load_data_q.ld_rm_cnt; //for RM
         // we got an rvalid and are currently not flushing and not aborting the request
         if (req_port_i.data_rvalid && state_q != WAIT_FLUSH) begin
             // we killed the request

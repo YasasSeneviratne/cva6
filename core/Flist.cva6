@@ -139,6 +139,14 @@ ${CVA6_REPO_DIR}/core/frontend/instr_scan.sv
 ${CVA6_REPO_DIR}/core/frontend/instr_queue.sv
 ${CVA6_REPO_DIR}/core/frontend/frontend.sv
 
+// Runtime monitor
+${CVA6_REPO_DIR}/core/RM/rm_lane_allocator.sv
+${CVA6_REPO_DIR}/core/RM/rm_event_detector.sv
+${CVA6_REPO_DIR}/core/RM/rm_event_router.sv
+
+
+//${CVA6_REPO_DIR}/core/
+
 // Cache subsystem
 ${CVA6_REPO_DIR}/core/cache_subsystem/wt_dcache_ctrl.sv
 ${CVA6_REPO_DIR}/core/cache_subsystem/wt_dcache_mem.sv

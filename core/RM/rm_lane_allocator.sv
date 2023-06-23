@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -20,21 +19,21 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 module rm_lane_allocator#(
-	parameter NUM_LANES=4
+	parameter NUM_LANES=4,
+	parameter NUM_EVENTS=10
 	)(
-	input 					clk_i,
-	input 					rst_ni,
-	input [6:0]				opcode,
-	input  logic [riscv::VLEN-1:0]    	pc_i,
- 
-	input runtime_monitor_ctrl		commit_monitor, //commited monitor ctrl	
-	input 					commit_ack,
-	output logic runtime_monitor_ctrl	monitor_o	
+	input 						clk_i,
+	input 						rst_ni,
+	input [6:0]					opcode,
+	input  logic [riscv::VLEN-1:0]    		pc_i,
+	input  logic                         		entry_queued_i, 
+	input ariane_pkg::runtime_monitor_ctrl	[NUM_EVENTS-1:0]	reset_monitor, //reset monitor ctrl	
+	//input 						commit_ack,
+	output ariane_pkg::runtime_monitor_ctrl		monitor_o	
 	);
 	logic					monitor;
-	logic [NUM_LANES-1:0]			lane_o;
+	logic [$clog2(NUM_LANES)-1:0]			lane_o;
 
-	logic [NUM_LANES-1:0] 			lane_allocation;
 	logic [NUM_LANES-1:0] 			alloc_mem;
 	logic [NUM_LANES-1:0][riscv::VLEN-1:0] 	pc_mem;
 
@@ -44,17 +43,19 @@ module rm_lane_allocator#(
 	always_comb begin
 	//check if the instuction is monitored
 		monitor = 1'b0;
-		if(opcode==riscv::OpcodeStore || opcode==riscv::OpcodeLoad) begin
+		if((opcode==riscv::OpcodeStore || opcode==riscv::OpcodeLoad) && entry_queued_i) begin
+		//if((opcode==riscv::OpcodeLoad) && entry_queued_i) begin
 			monitor = 1'b1;
 		end
 	
 	//assign next available lant to the instruction
-		lane_o = {NUM_LANES{1'b0}};
+		lane_o = '0;
 		for(int i=0; i<NUM_LANES; i++) begin
-			if(lane_allocation[i]==1'b0)
+			if(alloc_mem[i]==1'b0) begin
 				lane_o = i;
 				break;
-		end	
+			end
+		end
 	end
 	
 	always_ff @(posedge clk_i or negedge rst_ni) begin: set_alloc
@@ -65,13 +66,17 @@ module rm_lane_allocator#(
 			end
 		end else begin
 			if(monitor) begin
-				alloc_mem[lane_0] 	<= 1'b1;
-				pc_mem[lane_0]		<= pc_i;
+				alloc_mem[lane_o] 	<= 1'b1;
+				pc_mem[lane_o]		<= pc_i;
 			end
 			
-			if(commit_ack == 1'b1 && commit_monitor.monitor_ins == 1'b1) begin
-				alloc_mem[commit_monitor.lane] 	<= 1'b0;
-				pc_mem[commit_monitor.lane]	<= {riscv::VLEN{1'b0}};
+//			if(commit_ack == 1'b1 && commit_monitor.monitor_ins == 1'b1) begin
+//				alloc_mem[commit_monitor.lane] 	<= 1'b0;
+//				pc_mem[commit_monitor.lane]	<= {riscv::VLEN{1'b0}};
+//			end
+			for(int i=0; i<NUM_EVENTS; i++) begin
+				if (reset_monitor[i].reset_lane)
+					alloc_mem[reset_monitor[i].lane] <= 1'b0;
 			end
 		end	
 	end

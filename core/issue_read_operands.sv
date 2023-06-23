@@ -72,7 +72,9 @@ module issue_read_operands import ariane_pkg::*; #(
     input  logic [NR_COMMIT_PORTS-1:0]             we_gpr_i,
     input  logic [NR_COMMIT_PORTS-1:0]             we_fpr_i,
 
-    output logic                                   stall_issue_o  // stall signal, we do not want to fetch any more entries
+    output logic                                   stall_issue_o,  // stall signal, we do not want to fetch any more entries
+    // RM
+    output runtime_monitor_ctrl		   rm_o
     // committing instruction instruction
     // from scoreboard
     // input  scoreboard_entry     commit_instr_i,
@@ -510,6 +512,7 @@ module issue_read_operands import ariane_pkg::*; #(
             operator_q            <= ADD;
             trans_id_q            <= '0;
             pc_o                  <= '0;
+	    rm_o		  <= '0;
             is_compressed_instr_o <= 1'b0;
             branch_predict_o      <= {cf_t'(0), {riscv::VLEN{1'b0}}};
         end else begin
@@ -520,6 +523,7 @@ module issue_read_operands import ariane_pkg::*; #(
             operator_q            <= operator_n;
             trans_id_q            <= trans_id_n;
             pc_o                  <= issue_instr_i.pc;
+	    rm_o		  <= issue_instr_i.rm_cnt;
             is_compressed_instr_o <= issue_instr_i.is_compressed;
             branch_predict_o      <= issue_instr_i.bp;
         end

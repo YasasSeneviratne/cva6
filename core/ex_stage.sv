@@ -123,7 +123,10 @@ module ex_stage import ariane_pkg::*; #(
     output [riscv::PLEN-1:0]                       mem_paddr_o,
     output [(riscv::XLEN/8)-1:0]                   lsu_rmask_o,
     output [(riscv::XLEN/8)-1:0]                   lsu_wmask_o,
-    output [ariane_pkg::TRANS_ID_BITS-1:0]         lsu_addr_trans_id_o
+    output [ariane_pkg::TRANS_ID_BITS-1:0]         lsu_addr_trans_id_o,
+
+    // RM
+    input ariane_pkg::runtime_monitor_ctrl         rm_i
 );
 
     // -------------------------
@@ -340,7 +343,8 @@ module ex_stage import ariane_pkg::*; #(
         .mem_paddr_o,
         .lsu_rmask_o,
         .lsu_wmask_o,
-        .lsu_addr_trans_id_o
+        .lsu_addr_trans_id_o,
+	.rm_i 
     );
 
     if (CVXIF_PRESENT) begin : gen_cvxif

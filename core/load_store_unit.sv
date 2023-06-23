@@ -79,10 +79,14 @@ module load_store_unit import ariane_pkg::*; #(
     output [riscv::PLEN-1:0]         mem_paddr_o,
     output [(riscv::XLEN/8)-1:0]     lsu_rmask_o,
     output [(riscv::XLEN/8)-1:0]     lsu_wmask_o,
-    output [ariane_pkg::TRANS_ID_BITS-1:0] lsu_addr_trans_id_o
+    output [ariane_pkg::TRANS_ID_BITS-1:0] lsu_addr_trans_id_o,
+
+    // RM 
+    input runtime_monitor_ctrl       rm_i
 );
 
-    wire [riscv::VLEN-1:0]    load_pc_o; 
+    wire [riscv::VLEN-1:0]    load_pc_o;
+    runtime_monitor_ctrl      load_rm_o; 
     // data is misaligned
     logic data_misaligned;
     // --------------------------------------
@@ -137,6 +141,9 @@ module load_store_unit import ariane_pkg::*; #(
     exception_t               misaligned_exception;
     exception_t               ld_ex;
     exception_t               st_ex;
+
+    // RM
+    runtime_monitor_ctrl      ld_rm; 
 
     // -------------------
     // MMU e.g.: TLBs/PTW
@@ -313,6 +320,8 @@ module load_store_unit import ariane_pkg::*; #(
         .req_port_o            ( dcache_req_ports_o [1] ),
         .dcache_wbuffer_not_ni_i,
         .commit_tran_id_i,
+	// RM
+	.rm_o		       ( ld_rm			),
         .*
     );
 
@@ -324,13 +333,13 @@ module load_store_unit import ariane_pkg::*; #(
     // can be tuned to trade-off IPC vs. cycle time
 
     shift_reg #(
-        .dtype ( logic[$bits(ld_valid) + $bits(ld_trans_id) + $bits(ld_result) + $bits(ld_ex) + $bits(ld_pc) - 1: 0]),
+        .dtype ( logic[$bits(ld_valid) + $bits(ld_trans_id) + $bits(ld_result) + $bits(ld_ex) + $bits(ld_pc) + $bits(ld_rm) - 1: 0]),
         .Depth ( cva6_config_pkg::CVA6ConfigNrLoadPipeRegs )
     ) i_pipe_reg_load (
         .clk_i,
         .rst_ni,
-        .d_i ( {ld_valid, ld_trans_id, ld_result, ld_ex, ld_pc}),
-        .d_o ( {load_valid_o, load_trans_id_o, load_result_o, load_exception_o, load_pc_o} )
+        .d_i ( {ld_valid, ld_trans_id, ld_result, ld_ex, ld_pc, ld_rm}),
+        .d_o ( {load_valid_o, load_trans_id_o, load_result_o, load_exception_o, load_pc_o, load_rm_o} )
     );
 
     shift_reg #(
@@ -474,7 +483,7 @@ module load_store_unit import ariane_pkg::*; #(
     lsu_ctrl_t lsu_req_i;
 
     assign lsu_req_i = {lsu_valid_i, vaddr_i, overflow, fu_data_i.operand_b, be_i, fu_data_i.fu, fu_data_i.operation, fu_data_i.trans_id,
-			pc_i};  // for RM
+			pc_i, rm_i};  // for RM
 
     lsu_bypass lsu_bypass_i (
         .lsu_req_i          ( lsu_req_i   ),

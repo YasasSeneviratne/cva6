@@ -14,30 +14,32 @@
 //              issue and read operands.
 
 module id_stage (
-    input  logic                          clk_i,
-    input  logic                          rst_ni,
+    input  logic                          	clk_i,
+    input  logic                          	rst_ni,
 
-    input  logic                          flush_i,
-    input  logic                          debug_req_i,
+    input  logic                          	flush_i,
+    input  logic                          	debug_req_i,
     // from IF
-    input  ariane_pkg::fetch_entry_t      fetch_entry_i,
-    input  logic                          fetch_entry_valid_i,
-    output logic                          fetch_entry_ready_o, // acknowledge the instruction (fetch entry)
+    input  ariane_pkg::fetch_entry_t      	fetch_entry_i,
+    input  logic                          	fetch_entry_valid_i,
+    output logic                          	fetch_entry_ready_o, // acknowledge the instruction (fetch entry)
     // to ID
-    output ariane_pkg::scoreboard_entry_t issue_entry_o,       // a decoded instruction
-    output logic                          issue_entry_valid_o, // issue entry is valid
-    output logic                          is_ctrl_flow_o,      // the instruction we issue is a ctrl flow instructions
-    input  logic                          issue_instr_ack_i,   // issue stage acknowledged sampling of instructions
+    output ariane_pkg::scoreboard_entry_t 	issue_entry_o,       // a decoded instruction
+    output logic                          	issue_entry_valid_o, // issue entry is valid
+    output logic                          	is_ctrl_flow_o,      // the instruction we issue is a ctrl flow instructions
+    input  logic                          	issue_instr_ack_i,   // issue stage acknowledged sampling of instructions
     // from CSR file
-    input  riscv::priv_lvl_t              priv_lvl_i,          // current privilege level
-    input  riscv::xs_t                    fs_i,                // floating point extension status
-    input  logic [2:0]                    frm_i,               // floating-point dynamic rounding mode
-    input  logic [1:0]                    irq_i,
-    input  ariane_pkg::irq_ctrl_t         irq_ctrl_i,
-    input  logic                          debug_mode_i,        // we are in debug mode
-    input  logic                          tvm_i,
-    input  logic                          tw_i,
-    input  logic                          tsr_i
+    input  riscv::priv_lvl_t              	priv_lvl_i,          // current privilege level
+    input  riscv::xs_t                    	fs_i,                // floating point extension status
+    input  logic [2:0]                    	frm_i,               // floating-point dynamic rounding mode
+    input  logic [1:0]                    	irq_i,
+    input  ariane_pkg::irq_ctrl_t         	irq_ctrl_i,
+    input  logic                          	debug_mode_i,        // we are in debug mode
+    input  logic                          	tvm_i,
+    input  logic                          	tw_i,
+    input  logic                          	tsr_i,
+    // for RM
+    input  ariane_pkg::lane_ctrl [ariane_pkg::RM_NUM_EVENTS-1:0]	reset_monitor
 );
     // ID/ISSUE register stage
     typedef struct packed {
@@ -94,6 +96,31 @@ module id_stage (
         .is_control_flow_instr_o ( is_control_flow_instr        )
     );
 
+
+    // ------------------
+    // Runtime monitor allocator
+    // ------------------ 
+    riscv::instruction_t instr;
+    assign instr = riscv::instruction_t'(instruction);
+    ariane_pkg::runtime_monitor_ctrl  monitor_o;
+    logic issue_en;
+    assign issue_en  = (!issue_q.valid || issue_instr_ack_i) && fetch_entry_valid_i;
+    rm_lane_allocator #(
+  	.NUM_LANES(ariane_pkg::RM_NUM_LANES),
+	.NUM_EVENTS(ariane_pkg::RM_NUM_EVENTS)
+    )
+    rm_alloc (
+        .clk_i,
+        .rst_ni,
+        .opcode                  ( instr.rtype.opcode		   ),
+	.pc_i                    ( fetch_entry_i.address           ),
+	.entry_queued_i	 	 ( issue_en),
+        .reset_monitor,
+        //.commit_ack              ( ),
+        .monitor_o		 
+    );
+
+    assign decoded_instruction.rm_cnt = issue_en? monitor_o: '0;
     // ------------------
     // Pipeline Register
     // ------------------

@@ -139,6 +139,9 @@ module cva6 import ariane_pkg::*; #(
   logic                     x_issue_valid_id_ex;
   logic                     x_issue_ready_ex_id;
   logic [31:0]              x_off_instr_id_ex;
+  // RM
+  ariane_pkg::runtime_monitor_ctrl issue_rm_o; 
+
   // --------------
   // EX <-> COMMIT
   // --------------
@@ -251,6 +254,11 @@ module cva6 import ariane_pkg::*; #(
   logic [(riscv::XLEN/8)-1:0]           lsu_rmask;
   logic [(riscv::XLEN/8)-1:0]           lsu_wmask;
   logic [ariane_pkg::TRANS_ID_BITS-1:0] lsu_addr_trans_id;
+	
+  //---------------
+  // Runtime Monitor
+  //---------------
+  lane_ctrl [RM_NUM_EVENTS-1: 0]	rm_event_o; 
 
   // --------------
   // Frontend
@@ -304,7 +312,8 @@ module cva6 import ariane_pkg::*; #(
     .debug_mode_i               ( debug_mode                 ),
     .tvm_i                      ( tvm_csr_id                 ),
     .tw_i                       ( tw_csr_id                  ),
-    .tsr_i                      ( tsr_csr_id                 )
+    .tsr_i                      ( tsr_csr_id                 ),
+    .reset_monitor		( rm_event_o		     )
   );
 
   logic [NR_WB_PORTS-1:0][TRANS_ID_BITS-1:0] trans_id_ex_id;
@@ -392,6 +401,8 @@ module cva6 import ariane_pkg::*; #(
     .lsu_rmask_i                ( lsu_rmask                    ),
     .lsu_wmask_i                ( lsu_wmask                    ),
     .lsu_addr_trans_id_i        ( lsu_addr_trans_id            ),
+    // RM
+    .rm_o			( issue_rm_o		       ),
     .*
   );
 
@@ -501,7 +512,9 @@ module cva6 import ariane_pkg::*; #(
     .mem_paddr_o            ( mem_paddr                   ),
     .lsu_rmask_o            ( lsu_rmask                   ),
     .lsu_wmask_o            ( lsu_wmask                   ),
-    .lsu_addr_trans_id_o    ( lsu_addr_trans_id           )
+    .lsu_addr_trans_id_o    ( lsu_addr_trans_id           ),
+    // RM
+    .rm_i		    ( issue_rm_o		  )
   );
 
   // ---------
@@ -977,194 +990,738 @@ module cva6 import ariane_pkg::*; #(
 
 // RM probes
 
+//TODO use generate blocks for event detectors with similar interfaces??
+
 localparam pc0 = 0;
-wire id_stage_s1 = 
-	(id_stage_i.issue_q.sbe.pc == pc0) && 
-	(id_stage_i.issue_q.valid == 1'd1) && 
-	 1'b1; 
-wire issue_s16 = 
-	(issue_stage_i.i_issue_read_operands.pc_o == pc0) && 
-	(issue_stage_i.i_issue_read_operands.alu_valid_q == 1'd0) && 
-	(issue_stage_i.i_issue_read_operands.lsu_valid_q == 1'd1) && 
-	(issue_stage_i.i_issue_read_operands.mult_valid_q == 1'd0) && 
-	(issue_stage_i.i_issue_read_operands.fpu_valid_q == 1'd0) && 
-	(issue_stage_i.i_issue_read_operands.csr_valid_q == 1'd0) && 
-	(issue_stage_i.i_issue_read_operands.branch_valid_q == 1'd0) && 
-	 1'b1;
-/* 
-wire lsq_enq_0_s1 = 
-	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].pc == pc0) && 
-	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].valid == 1'd1) && 
-	 1'b1; 
-wire lsq_enq_1_s1 = 
-	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].pc == pc0) && 
-	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].valid == 1'd1) && 
-	 1'b1; 
+//wire id_stage_s1 = 
+//	(id_stage_i.issue_q.sbe.pc == pc0) && 
+//	(id_stage_i.issue_q.valid == 1'd1) && 
+//	 1'b1; 
 
-*/
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	id_stage_s1 (
+	.signal(id_stage_i.issue_q.valid),
+	.ref_val(1'b1),
+	.rm_cnt_i(id_stage_i.issue_q.sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[0]),
+	.reset_lane_i(flush_ctrl_if)
+	);
+	
+//wire issue_s16 = 
+//	(issue_stage_i.i_issue_read_operands.pc_o == pc0) && 
+//	(issue_stage_i.i_issue_read_operands.alu_valid_q == 1'd0) && 
+//	(issue_stage_i.i_issue_read_operands.lsu_valid_q == 1'd1) && 
+//	(issue_stage_i.i_issue_read_operands.mult_valid_q == 1'd0) && 
+//	(issue_stage_i.i_issue_read_operands.fpu_valid_q == 1'd0) && 
+//	(issue_stage_i.i_issue_read_operands.csr_valid_q == 1'd0) && 
+//	(issue_stage_i.i_issue_read_operands.branch_valid_q == 1'd0) && 
+//	 1'b1;
 
-wire scb_0_s12 = 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd0) && 
-	 1'b1; 
-wire scb_0_s13 = 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd1) && 
-	 1'b1; 
-wire scb_0_s14 = 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd1) && 
-	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd0) && 
-	 1'b1; 
-wire scb_0_s8 = 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd0) && 
-	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd0) && 
-	 1'b1; 
-wire scb_1_s12 = 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd0) && 
-	 1'b1; 
-wire scb_1_s13 = 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd1) && 
-	 1'b1; 
-wire scb_1_s14 = 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd1) && 
-	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd0) && 
-	 1'b1; 
-wire scb_1_s8 = 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd0) && 
-	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd0) && 
-	 1'b1; 
-wire scb_2_s12 = 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd0) && 
-	 1'b1; 
-wire scb_2_s13 = 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd1) && 
-	 1'b1; 
-wire scb_2_s14 = 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd1) && 
-	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd0) && 
-	 1'b1; 
-wire scb_2_s8 = 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd0) && 
-	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd0) && 
-	 1'b1; 
-wire scb_3_s12 = 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd0) && 
-	 1'b1; 
-wire scb_3_s13 = 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd1) && 
-	 1'b1; 
-wire scb_3_s14 = 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd1) && 
-	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd0) && 
-	 1'b1; 
-wire scb_3_s8 = 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd0) && 
-	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd0) && 
-	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd0) && 
-	 1'b1; 
-wire stb_com_0_s1 = 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].pc == pc0) && 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].valid == 1'd1) && 
-	 1'b1; 
-wire stb_com_1_s1 = 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].pc == pc0) && 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].valid == 1'd1) && 
-	 1'b1; 
-wire stb_spec_0_s1 = 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].pc == pc0) && 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].valid == 1'd1) && 
-	 1'b1; 
-wire stb_spec_1_s1 = 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].pc == pc0) && 
-	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].valid == 1'd1) && 
-	 1'b1; 
-wire load_unit_s1 = 
-	(ex_stage_i.lsu_i.i_load_unit.load_data_q.ld_pc == pc0) && 
-	(ex_stage_i.lsu_i.i_load_unit.valid_o == 1'd1) && 
-	 1'b1; 
-wire store_unit_s1 = 
-	(ex_stage_i.lsu_i.i_store_unit.st_pc_q == pc0) && 
-	(ex_stage_i.lsu_i.i_store_unit.state_q == 2'd1) && 
-	 1'b1; 
-wire store_unit_s3 = 
-	(ex_stage_i.lsu_i.i_store_unit.st_pc_q == pc0) && 
-	(ex_stage_i.lsu_i.i_store_unit.state_q == 2'd3) && 
-	 1'b1; 
-wire load_unit_buff_s1 = 
-	(ex_stage_i.lsu_i.load_pc_o == pc0) && 
-	(ex_stage_i.lsu_i.load_valid_o == 1'd1) && 
-	 1'b1; 
-wire load_unit_op_s1 = 
-	(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.pc == pc0) && 
-    (ex_stage_i.lsu_i.i_load_unit.valid_i == 1'd1) &&
-	(ex_stage_i.lsu_i.i_load_unit.state_q == 4'd1) && 
-	 1'b1; 
-wire load_unit_op_s2 = 
-	(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.pc == pc0) && 
-    (ex_stage_i.lsu_i.i_load_unit.valid_i == 1'd1) &&
-	(ex_stage_i.lsu_i.i_load_unit.state_q == 4'd2) && 
-	 1'b1; 
-wire load_unit_op_s3 = 
-	(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.pc == pc0) && 
-    (ex_stage_i.lsu_i.i_load_unit.valid_i == 1'd1) &&
-	(ex_stage_i.lsu_i.i_load_unit.state_q == 4'd3) && 
-	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(6 ),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	issue_s16 (
+	.signal({
+	issue_stage_i.i_issue_read_operands.alu_valid_q, 
+	issue_stage_i.i_issue_read_operands.lsu_valid_q, 
+	issue_stage_i.i_issue_read_operands.mult_valid_q, 
+	issue_stage_i.i_issue_read_operands.fpu_valid_q, 
+	issue_stage_i.i_issue_read_operands.csr_valid_q, 
+	issue_stage_i.i_issue_read_operands.branch_valid_q 
+	}),
+	.ref_val(6'b010000),
+	.rm_cnt_i(issue_stage_i.i_issue_read_operands.rm_o),
+	.lane_cnt_o(rm_event_o[1]),
+	.reset_lane_i(flush_unissued_instr_ctrl_id)
+	);
+ 
+//wire lsq_enq_0_s1 = 
+//	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].pc == pc0) && 
+//	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].valid == 1'd1) && 
+//	 1'b1;
+
+
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	lsq_enq_0_s1 (
+	.signal(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].valid),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].rm_cnt),
+	.lane_cnt_o(rm_event_o[2]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+ 
+//wire lsq_enq_1_s1 = 
+//	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].pc == pc0) && 
+//	(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].valid == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	lsq_enq_1_s1 (
+	.signal(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].valid),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].rm_cnt),
+	.lane_cnt_o(rm_event_o[3]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
+//wire scb_0_s12 = 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_0_s12 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[0].issued,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0))) 
+	}),
+	.ref_val(4'b1100),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[4]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+
+//wire scb_0_s13 = 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd1) && 
+//	 1'b1;
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_0_s13 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[0].issued,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0))) 
+	}),
+	.ref_val(4'b1101),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[5]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+ 
+//wire scb_0_s14 = 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd1) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_0_s14 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[0].issued,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0))) 
+	}),
+	.ref_val(4'b1110),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[6]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_0_s8 = 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.valid == 1'd0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_0_s8 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[0].issued,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[0].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[0].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd0) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd0))) 
+	}),
+	.ref_val(4'b1000),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[7]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_1_s12 = 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_1_s12 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[1].issued,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1))) 
+	}),
+	.ref_val(4'b1100),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[8]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_1_s13 = 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_1_s13 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[1].issued,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1))) 
+	}),
+	.ref_val(4'b1101),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[9]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_1_s14 = 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd1) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_1_s14 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[1].issued,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1))) 
+	}),
+	.ref_val(4'b1101),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[10]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_1_s8 = 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.valid == 1'd0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_1_s8 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[1].issued,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[1].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[1].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd1) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd1))) 
+	}),
+	.ref_val(4'b1000),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[11]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_2_s12 = 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_2_s12 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[2].issued,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2))) 
+	}),
+	.ref_val(4'b1100),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[12]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_2_s13 = 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_2_s13 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[2].issued,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2))) 
+	}),
+	.ref_val(4'b1101),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[13]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_2_s14 = 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd1) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_2_s14 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[2].issued,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2))) 
+	}),
+	.ref_val(4'b1110),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[14]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_2_s8 = 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.valid == 1'd0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_2_s8 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[2].issued,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[2].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[2].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd2) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd2))) 
+	}),
+	.ref_val(4'b1000),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[15]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_3_s12 = 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_3_s12 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[3].issued,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3))) 
+	}),
+	.ref_val(4'b1100),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[16]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_3_s13 = 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_3_s13 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[3].issued,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3))) 
+	}),
+	.ref_val(4'b1101),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[17]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_3_s14 = 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd1) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_3_s14 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[3].issued,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3))) 
+	}),
+	.ref_val(4'b1110),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[18]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire scb_3_s8 = 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.pc == pc0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].issued == 1'd1) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.valid == 1'd0) && 
+//	(issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid == 1'd0) && 
+//	(((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3)))  == 1'd0) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(4),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	scb_3_s8 (
+	.signal({
+	issue_stage_i.i_scoreboard.mem_q[3].issued,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
+	issue_stage_i.i_scoreboard.mem_q[3].sbe.ex.valid,
+	((issue_stage_i.i_scoreboard.mem_n[3].issued == 1'b0) && ((issue_stage_i.i_scoreboard.commit_ack_i[1] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[1] == 2'd3) || (issue_stage_i.i_scoreboard.commit_ack_i[0] == 1'b1 && issue_stage_i.i_scoreboard.commit_pointer_q[0] == 2'd3))) 
+	}),
+	.ref_val(4'b1000),
+	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
+	.lane_cnt_o(rm_event_o[19]),
+	.reset_lane_i(flush_ctrl_id)
+	);
+
+//wire stb_com_0_s1 = 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].pc == pc0) && 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].valid == 1'd1) && 
+//	 1'b1; 
+
+//TODO need to figure out when to fush store buffer commit queue
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	stb_com_0_s1 (
+	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].valid),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].rm_cnt),
+	.lane_cnt_o(rm_event_o[20]),
+	.reset_lane_i(0)
+	);
+
+//wire stb_com_1_s1 = 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].pc == pc0) && 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].valid == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	stb_com_1_s1 (
+	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].valid),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].rm_cnt),
+	.lane_cnt_o(rm_event_o[21]),
+	.reset_lane_i(0) 
+	);
+
+//wire stb_spec_0_s1 = 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].pc == pc0) && 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].valid == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	stb_spec_0_s1 (
+	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].valid),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].rm_cnt),
+	.lane_cnt_o(rm_event_o[22]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
+//wire stb_spec_1_s1 = 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].pc == pc0) && 
+//	(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].valid == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	stb_spec_1_s1 (
+	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].valid),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].rm_cnt),
+	.lane_cnt_o(rm_event_o[23]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
+//wire load_unit_s1 = 
+//	(ex_stage_i.lsu_i.i_load_unit.load_data_q.ld_pc == pc0) && 
+//	(ex_stage_i.lsu_i.i_load_unit.valid_o == 1'd1) && 
+//	 1'b1; 
+
+//TODO double check reset
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	load_unit_s1 (
+	.signal(ex_stage_i.lsu_i.i_load_unit.valid_o),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.rm_o),
+	.lane_cnt_o(rm_event_o[24]),
+	.reset_lane_i(0)
+	);
+
+//wire store_unit_s1 = 
+//	(ex_stage_i.lsu_i.i_store_unit.st_pc_q == pc0) && 
+//	(ex_stage_i.lsu_i.i_store_unit.state_q == 2'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(2),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	store_unit_s1 (
+	.signal(ex_stage_i.lsu_i.i_store_unit.state_q),
+	.ref_val(2'd1),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.st_rm_q),
+	.lane_cnt_o(rm_event_o[25]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
+//wire store_unit_s3 = 
+//	(ex_stage_i.lsu_i.i_store_unit.st_pc_q == pc0) && 
+//	(ex_stage_i.lsu_i.i_store_unit.state_q == 2'd3) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(2),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	store_unit_s3 (
+	.signal(ex_stage_i.lsu_i.i_store_unit.state_q),
+	.ref_val(2'd3),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.st_rm_q),
+	.lane_cnt_o(rm_event_o[26]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
+
+//wire load_unit_buff_s1 = 
+//	(ex_stage_i.lsu_i.load_pc_o == pc0) && 
+//	(ex_stage_i.lsu_i.load_valid_o == 1'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	load_unit_buff_s1 (
+	.signal(ex_stage_i.lsu_i.load_valid_o),
+	.ref_val(1'b1),
+	.rm_cnt_i(ex_stage_i.lsu_i.load_rm_o),
+	.lane_cnt_o(rm_event_o[27]),
+	.reset_lane_i(0)
+	);
+
+//wire load_unit_op_s1 = 
+//	(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.pc == pc0) && 
+//    (ex_stage_i.lsu_i.i_load_unit.valid_i == 1'd1) &&
+//	(ex_stage_i.lsu_i.i_load_unit.state_q == 4'd1) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(5),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	load_unit_op_s1 (
+	.signal({
+	ex_stage_i.lsu_i.i_load_unit.valid_i,
+	ex_stage_i.lsu_i.i_load_unit.state_q
+	}),
+	.ref_val(5'b10001),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.rm_cnt),
+	.lane_cnt_o(rm_event_o[28]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
+//wire load_unit_op_s2 = 
+//	(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.pc == pc0) && 
+//    (ex_stage_i.lsu_i.i_load_unit.valid_i == 1'd1) &&
+//	(ex_stage_i.lsu_i.i_load_unit.state_q == 4'd2) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(5),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	load_unit_op_s2 (
+	.signal({
+	ex_stage_i.lsu_i.i_load_unit.valid_i,
+	ex_stage_i.lsu_i.i_load_unit.state_q
+	}),
+	.ref_val(5'b10010),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.rm_cnt),
+	.lane_cnt_o(rm_event_o[28]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
+//wire load_unit_op_s3 = 
+//	(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.pc == pc0) && 
+//    (ex_stage_i.lsu_i.i_load_unit.valid_i == 1'd1) &&
+//	(ex_stage_i.lsu_i.i_load_unit.state_q == 4'd3) && 
+//	 1'b1; 
+
+
+rm_event_detector #(
+	.NUM_VARS(5),
+	.NUM_LANES(RM_NUM_LANES)
+	) 
+	load_unit_op_s3 (
+	.signal({
+	ex_stage_i.lsu_i.i_load_unit.valid_i,
+	ex_stage_i.lsu_i.i_load_unit.state_q
+	}),
+	.ref_val(5'b10011),
+	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.rm_cnt),
+	.lane_cnt_o(rm_event_o[28]),
+	.reset_lane_i(flush_ctrl_ex)
+	);
+
 // need to change with cache
 //wire mem_req_s1 = 
 //    (ex_stage_i.lsu_i.i_ord_sram.pc_i == pc0) && 
 //    (ex_stage_i.lsu_i.i_ord_sram.req_i == 1'b1) &&  
 //    1'b1;
+
+
+
+rm_event_router #(
+	.NUM_LANES(RM_NUM_LANES),
+	.NUM_EVENTS(RM_NUM_EVENTS)
+	)
+	event_router (
+	.events_i	( rm_event_o),
+	.lane_vector_o	(),
+	.lane_reset_o	()
+	);
+
+
 endmodule // ariane
