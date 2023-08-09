@@ -75,7 +75,9 @@ package cva6_config_pkg;
 
     localparam CVA6ConfigMmuPresent = 1;
 //todo add vartable for runtime monitoring
-    localparam CVA6ConfigRMLanes = 4; //should be power of 2
+    localparam CVA6ConfigRMLanes = 8; //should be power of 2
+    localparam CVA6ConfigRMevants = 32; 
+    localparam CVA6ConfigRMrules = 78; 
 
     `define RVFI_PORT
 

@@ -116,6 +116,7 @@ module id_stage (
 	.pc_i                    ( fetch_entry_i.address           ),
 	.entry_queued_i	 	 ( issue_en),
         .reset_monitor,
+	.flush_i,
         //.commit_ack              ( ),
         .monitor_o		 
     );
@@ -145,8 +146,10 @@ module id_stage (
         end
 
         // invalidate the pipeline register on a flush
-        if (flush_i)
+        if (flush_i) begin
             issue_n.valid = 1'b0;
+            issue_n.sbe.rm_cnt = '0;
+	end
     end
     // -------------------------
     // Registers (ID <-> Issue)

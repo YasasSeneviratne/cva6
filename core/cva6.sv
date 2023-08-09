@@ -258,8 +258,10 @@ module cva6 import ariane_pkg::*; #(
   //---------------
   // Runtime Monitor
   //---------------
-  lane_ctrl [RM_NUM_EVENTS-1: 0]	rm_event_o; 
-
+  lane_ctrl [RM_NUM_EVENTS-1: 0]		rm_event_o; 
+  logic [RM_NUM_LANES-1: 0][RM_NUM_RULES-1:0]   	monitor_o;
+  logic [RM_NUM_EVENTS-1:0][RM_NUM_LANES-1:0]   	lane_vector;
+  logic [RM_NUM_LANES-1:0]   			lane_reset; 
   // --------------
   // Frontend
   // --------------
@@ -1003,10 +1005,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	id_stage_s1 (
+    	.clk_i,
+    	.rst_ni,
 	.signal(id_stage_i.issue_q.valid),
 	.ref_val(1'b1),
 	.rm_cnt_i(id_stage_i.issue_q.sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[0]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_if)
 	);
 	
@@ -1027,6 +1032,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	issue_s16 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_issue_read_operands.alu_valid_q, 
 	issue_stage_i.i_issue_read_operands.lsu_valid_q, 
@@ -1038,6 +1045,7 @@ rm_event_detector #(
 	.ref_val(6'b010000),
 	.rm_cnt_i(issue_stage_i.i_issue_read_operands.rm_o),
 	.lane_cnt_o(rm_event_o[1]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_unissued_instr_ctrl_id)
 	);
  
@@ -1052,10 +1060,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	lsq_enq_0_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].valid),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[0].rm_cnt),
 	.lane_cnt_o(rm_event_o[2]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
  
@@ -1070,10 +1081,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	lsq_enq_1_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].valid),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.lsu_bypass_i.mem_q[1].rm_cnt),
 	.lane_cnt_o(rm_event_o[3]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1091,6 +1105,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_0_s12 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[0].issued,
 	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
@@ -1100,6 +1116,7 @@ rm_event_detector #(
 	.ref_val(4'b1100),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[4]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1118,6 +1135,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_0_s13 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[0].issued,
 	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
@@ -1127,6 +1146,7 @@ rm_event_detector #(
 	.ref_val(4'b1101),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[5]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
  
@@ -1144,6 +1164,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_0_s14 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[0].issued,
 	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
@@ -1153,6 +1175,7 @@ rm_event_detector #(
 	.ref_val(4'b1110),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[6]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1170,6 +1193,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_0_s8 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[0].issued,
 	issue_stage_i.i_scoreboard.mem_q[0].sbe.valid,
@@ -1179,6 +1204,7 @@ rm_event_detector #(
 	.ref_val(4'b1000),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[0].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[7]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1196,6 +1222,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_1_s12 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[1].issued,
 	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
@@ -1205,6 +1233,7 @@ rm_event_detector #(
 	.ref_val(4'b1100),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[8]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1222,6 +1251,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_1_s13 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[1].issued,
 	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
@@ -1231,6 +1262,7 @@ rm_event_detector #(
 	.ref_val(4'b1101),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[9]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1248,6 +1280,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_1_s14 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[1].issued,
 	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
@@ -1257,6 +1291,7 @@ rm_event_detector #(
 	.ref_val(4'b1101),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[10]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1274,6 +1309,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_1_s8 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[1].issued,
 	issue_stage_i.i_scoreboard.mem_q[1].sbe.valid,
@@ -1283,6 +1320,7 @@ rm_event_detector #(
 	.ref_val(4'b1000),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[1].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[11]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1300,6 +1338,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_2_s12 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[2].issued,
 	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
@@ -1309,6 +1349,7 @@ rm_event_detector #(
 	.ref_val(4'b1100),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[12]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1326,6 +1367,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_2_s13 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[2].issued,
 	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
@@ -1335,6 +1378,7 @@ rm_event_detector #(
 	.ref_val(4'b1101),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[13]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1352,6 +1396,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_2_s14 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[2].issued,
 	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
@@ -1361,6 +1407,7 @@ rm_event_detector #(
 	.ref_val(4'b1110),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[14]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1378,6 +1425,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_2_s8 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[2].issued,
 	issue_stage_i.i_scoreboard.mem_q[2].sbe.valid,
@@ -1387,6 +1436,7 @@ rm_event_detector #(
 	.ref_val(4'b1000),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[2].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[15]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1404,6 +1454,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_3_s12 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[3].issued,
 	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
@@ -1413,6 +1465,7 @@ rm_event_detector #(
 	.ref_val(4'b1100),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[16]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1430,6 +1483,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_3_s13 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[3].issued,
 	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
@@ -1439,6 +1494,7 @@ rm_event_detector #(
 	.ref_val(4'b1101),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[17]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1456,6 +1512,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_3_s14 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[3].issued,
 	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
@@ -1465,6 +1523,7 @@ rm_event_detector #(
 	.ref_val(4'b1110),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[18]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1482,6 +1541,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	scb_3_s8 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	issue_stage_i.i_scoreboard.mem_q[3].issued,
 	issue_stage_i.i_scoreboard.mem_q[3].sbe.valid,
@@ -1491,6 +1552,7 @@ rm_event_detector #(
 	.ref_val(4'b1000),
 	.rm_cnt_i(issue_stage_i.i_scoreboard.mem_q[3].sbe.rm_cnt),
 	.lane_cnt_o(rm_event_o[19]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_id)
 	);
 
@@ -1500,16 +1562,27 @@ rm_event_detector #(
 //	 1'b1; 
 
 //TODO need to figure out when to fush store buffer commit queue
+//The allocate RM must be reset before the next control signal
+logic tmp1;
+logic tmp2;
+
+assign tmp1 = ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_i & ~ ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_write_pointer_q[0];
+assign tmp2 = ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_i & ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_write_pointer_q[0];
+
 rm_event_detector #(
 	.NUM_VARS(1),
-	.NUM_LANES(RM_NUM_LANES)
+	.NUM_LANES(RM_NUM_LANES),
+        .LEAF_EVENT(1)
 	) 
 	stb_com_0_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].valid),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].rm_cnt),
 	.lane_cnt_o(rm_event_o[20]),
-	.reset_lane_i(0)
+	.reset_lane_i(0),
+	.leaf_reset_trigger(tmp1)
 	);
 
 //wire stb_com_1_s1 = 
@@ -1520,14 +1593,18 @@ rm_event_detector #(
 
 rm_event_detector #(
 	.NUM_VARS(1),
-	.NUM_LANES(RM_NUM_LANES)
+	.NUM_LANES(RM_NUM_LANES),
+        .LEAF_EVENT(1)
 	) 
 	stb_com_1_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].valid),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].rm_cnt),
 	.lane_cnt_o(rm_event_o[21]),
-	.reset_lane_i(0) 
+	.reset_lane_i(0),
+	.leaf_reset_trigger(tmp2) 
 	);
 
 //wire stb_spec_0_s1 = 
@@ -1541,10 +1618,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	stb_spec_0_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].valid),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[0].rm_cnt),
 	.lane_cnt_o(rm_event_o[22]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1559,10 +1639,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	stb_spec_1_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].valid),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.speculative_queue_q[1].rm_cnt),
 	.lane_cnt_o(rm_event_o[23]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1577,10 +1660,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	load_unit_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.i_load_unit.valid_o),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.rm_o),
 	.lane_cnt_o(rm_event_o[24]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(0)
 	);
 
@@ -1595,10 +1681,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	store_unit_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.i_store_unit.state_q),
 	.ref_val(2'd1),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.st_rm_q),
 	.lane_cnt_o(rm_event_o[25]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1613,10 +1702,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	store_unit_s3 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.i_store_unit.state_q),
 	.ref_val(2'd3),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.st_rm_q),
 	.lane_cnt_o(rm_event_o[26]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1632,10 +1724,13 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	load_unit_buff_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal(ex_stage_i.lsu_i.load_valid_o),
 	.ref_val(1'b1),
 	.rm_cnt_i(ex_stage_i.lsu_i.load_rm_o),
 	.lane_cnt_o(rm_event_o[27]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(0)
 	);
 
@@ -1651,6 +1746,8 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	load_unit_op_s1 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	ex_stage_i.lsu_i.i_load_unit.valid_i,
 	ex_stage_i.lsu_i.i_load_unit.state_q
@@ -1658,6 +1755,7 @@ rm_event_detector #(
 	.ref_val(5'b10001),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.rm_cnt),
 	.lane_cnt_o(rm_event_o[28]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1673,13 +1771,16 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	load_unit_op_s2 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	ex_stage_i.lsu_i.i_load_unit.valid_i,
 	ex_stage_i.lsu_i.i_load_unit.state_q
 	}),
 	.ref_val(5'b10010),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.rm_cnt),
-	.lane_cnt_o(rm_event_o[28]),
+	.lane_cnt_o(rm_event_o[29]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1695,13 +1796,16 @@ rm_event_detector #(
 	.NUM_LANES(RM_NUM_LANES)
 	) 
 	load_unit_op_s3 (
+    .clk_i,
+    .rst_ni,
 	.signal({
 	ex_stage_i.lsu_i.i_load_unit.valid_i,
 	ex_stage_i.lsu_i.i_load_unit.state_q
 	}),
 	.ref_val(5'b10011),
 	.rm_cnt_i(ex_stage_i.lsu_i.i_load_unit.lsu_ctrl_i.rm_cnt),
-	.lane_cnt_o(rm_event_o[28]),
+	.lane_cnt_o(rm_event_o[30]),
+	.leaf_reset_trigger(0),
 	.reset_lane_i(flush_ctrl_ex)
 	);
 
@@ -1712,6 +1816,8 @@ rm_event_detector #(
 //    1'b1;
 
 
+ 
+
 
 rm_event_router #(
 	.NUM_LANES(RM_NUM_LANES),
@@ -1719,9 +1825,21 @@ rm_event_router #(
 	)
 	event_router (
 	.events_i	( rm_event_o),
-	.lane_vector_o	(),
-	.lane_reset_o	()
+	.lane_vector_o	( lane_vector),
+	.lane_reset_o	( lane_reset)
 	);
 
+rm_monitor  #( 
+        .NUM_LANES(RM_NUM_LANES),
+        .NUM_EVENTS(RM_NUM_EVENTS), 
+        .NUM_RULES(RM_NUM_RULES)  
+        ) 
+        rm(
+        .clk_i, 
+        .rst_ni,
+        .lane_vector_i(lane_vector),
+        .lane_reset_i(lane_reset),
+        .monitor_o 
+        );
 
 endmodule // ariane

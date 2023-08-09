@@ -115,8 +115,10 @@ module store_buffer import ariane_pkg::*; (
         // when we flush evict the speculative stores
         if (flush_i) begin
             // reset all valid flags
-            for (int unsigned i = 0; i < DEPTH_SPEC; i++)
+            for (int unsigned i = 0; i < DEPTH_SPEC; i++) begin
                 speculative_queue_n[i].valid = 1'b0;
+                speculative_queue_n[i].rm_cnt    = '0;  // reset RM controls
+	    end
 
             speculative_write_pointer_n = speculative_read_pointer_q;
             // also reset the status count

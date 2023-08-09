@@ -268,6 +268,8 @@ module issue_read_operands import ariane_pkg::*; #(
         fpu_rm_q       <= 3'b0;
         csr_valid_q    <= 1'b0;
         branch_valid_q <= 1'b0;
+	//Runtime monitor control signals
+	rm_o	       <= '0;
       end else begin
         alu_valid_q    <= 1'b0;
         lsu_valid_q    <= 1'b0;
@@ -277,6 +279,8 @@ module issue_read_operands import ariane_pkg::*; #(
         fpu_rm_q       <= 3'b0;
         csr_valid_q    <= 1'b0;
         branch_valid_q <= 1'b0;
+	    
+ 	rm_o	       <= issue_instr_i.rm_cnt;
         // Exception pass through:
         // If an exception has occurred simply pass it through
         // we do not want to issue this instruction
@@ -343,6 +347,7 @@ module issue_read_operands import ariane_pkg::*; #(
           if (flush_i) begin
               cvxif_valid_q  <= 1'b0;
               cvxif_off_instr_q <= 32'b0;
+	      rm_o		<= '0;
           end
         end
       end
@@ -512,7 +517,7 @@ module issue_read_operands import ariane_pkg::*; #(
             operator_q            <= ADD;
             trans_id_q            <= '0;
             pc_o                  <= '0;
-	    rm_o		  <= '0;
+	    //rm_o		  <= '0;
             is_compressed_instr_o <= 1'b0;
             branch_predict_o      <= {cf_t'(0), {riscv::VLEN{1'b0}}};
         end else begin
@@ -523,7 +528,7 @@ module issue_read_operands import ariane_pkg::*; #(
             operator_q            <= operator_n;
             trans_id_q            <= trans_id_n;
             pc_o                  <= issue_instr_i.pc;
-	    rm_o		  <= issue_instr_i.rm_cnt;
+	    //rm_o		  <= issue_instr_i.rm_cnt;
             is_compressed_instr_o <= issue_instr_i.is_compressed;
             branch_predict_o      <= issue_instr_i.bp;
         end
