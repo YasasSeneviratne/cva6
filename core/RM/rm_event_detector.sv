@@ -20,25 +20,64 @@
 
 //it is assumed the variables are single bit long
 //when deploying they can be concatinated into one single signal
+//module rm_event_detector#(
+//	parameter NUM_VARS	=	10,
+//	parameter NUM_LANES	= 	5,
+//	parameter LEAF_EVENT	= 	0
+//	)(
+//	input [NUM_VARS-1:0]			signal,
+//	input [NUM_VARS-1:0]			ref_val,
+//	input ariane_pkg::runtime_monitor_ctrl 	rm_cnt_i,
+//	input logic				reset_lane_i,
+//	input logic 				leaf_reset_trigger, //external signal is needed know when rm cntrol changed in leaf event
+//	output ariane_pkg::lane_ctrl 		lane_cnt_o
+//	);
+//
+//	logic [$clog2(NUM_LANES)-1:0] 	lane_o;
+//	logic 			probe_val;
+//	//logic			reset_lane;
+//	
+//	assign lane_cnt_o.probe_val 	= probe_val;
+//	assign lane_cnt_o.lane		= lane_o;
+//	assign lane_cnt_o.reset_lane	= (LEAF_EVENT && rm_cnt_i.monitor_ins && leaf_reset_trigger) ? 1'b1: (( rm_cnt_i.monitor_ins) ? reset_lane_i: 1'b0);
+//
+//	always_comb begin
+//		lane_o  = rm_cnt_i.lane;
+//		probe_val = 1'b0;
+//		if (rm_cnt_i.monitor_ins) begin
+//			probe_val = 1'b1;
+//			for(int i=0; i<NUM_VARS; i++)
+//				probe_val = probe_val && (signal[i]==ref_val[i]);
+//		end
+//	end
+//
+//endmodule
+
+//single pulse per signal
 module rm_event_detector#(
 	parameter NUM_VARS	=	10,
 	parameter NUM_LANES	= 	5,
 	parameter LEAF_EVENT	= 	0
 	)(
+	input					clk_i,
+	input					rst_ni,
 	input [NUM_VARS-1:0]			signal,
 	input [NUM_VARS-1:0]			ref_val,
 	input ariane_pkg::runtime_monitor_ctrl 	rm_cnt_i,
 	input logic				reset_lane_i,
+	input logic 				leaf_reset_trigger, //external signal is needed know when rm cntrol changed in leaf event
 	output ariane_pkg::lane_ctrl 		lane_cnt_o
 	);
 
 	logic [$clog2(NUM_LANES)-1:0] 	lane_o;
+	logic [NUM_LANES-1:0] 	lane_probe_reg;
 	logic 			probe_val;
+	logic 			probe_val_o;
 	//logic			reset_lane;
 	
-	assign lane_cnt_o.probe_val 	= probe_val;
+	assign lane_cnt_o.probe_val 	= probe_val_o;
 	assign lane_cnt_o.lane		= lane_o;
-	assign lane_cnt_o.reset_lane	= (LEAF_EVENT && rm_cnt_i.monitor_ins) ? 1'b1: reset_lane_i;
+	assign lane_cnt_o.reset_lane	= (LEAF_EVENT && rm_cnt_i.monitor_ins && leaf_reset_trigger) ? 1'b1: (( rm_cnt_i.monitor_ins) ? reset_lane_i: 1'b0);
 
 	always_comb begin
 		lane_o  = rm_cnt_i.lane;
@@ -48,6 +87,30 @@ module rm_event_detector#(
 			for(int i=0; i<NUM_VARS; i++)
 				probe_val = probe_val && (signal[i]==ref_val[i]);
 		end
+
+		//probe_val_o = 0;
+		//for(int i=0; i<NUM_LANES; i++)
+		//	probe_val_o = probe_val_o | (probe_val & ~lane_probe_reg[i]);
 	end
+
+	assign probe_val_o =  (probe_val & ~lane_probe_reg[lane_o]);
+ 
+	always_ff @ (posedge clk_i or negedge rst_ni) begin: regval
+	if (~rst_ni) begin 
+		lane_probe_reg <= '0;
+	end
+	else  begin
+		if(rm_cnt_i.monitor_ins == 1'b1) begin
+		for(int i=0; i<NUM_LANES; i++) begin 
+			if(i==lane_o)
+				lane_probe_reg[i] <= probe_val;
+			else
+				lane_probe_reg[i] <= 1'b0;
+		end
+		end
+		else
+			lane_probe_reg <= '0; 
+	end
+	end 
 
 endmodule

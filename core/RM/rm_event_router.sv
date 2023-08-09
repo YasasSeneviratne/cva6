@@ -23,7 +23,7 @@ module rm_event_router#(
 	parameter NUM_EVENTS	= 	10
 	)(
 	input ariane_pkg::lane_ctrl [NUM_EVENTS-1:0]	events_i,
-	output logic [NUM_EVENTS-1:0][NUM_LANES-1:0]	lane_vector_o,
+	output logic [NUM_LANES-1:0][NUM_EVENTS-1:0]	lane_vector_o,
 	output logic [NUM_LANES-1:0]			lane_reset_o
 	);
 
@@ -32,8 +32,12 @@ module rm_event_router#(
 		lane_reset_o	= '0;
 
 		for(int i=0; i<NUM_EVENTS; i++) begin
-			lane_vector_o[i][events_i[i].lane] = events_i[i].probe_val;
+			lane_vector_o[events_i[i].lane][i] = events_i[i].probe_val;  
 			lane_reset_o[events_i[i].lane] = lane_reset_o[events_i[i].lane] | events_i[i].reset_lane;
 		end
+		//lane_vector_o[events_i[0].lane][0] = events_i[0].probe_val;
+		//lane_vector_o[events_i[1].lane][1] = events_i[1].probe_val;
+		//lane_vector_o[events_i[2].lane][2] = events_i[2].probe_val;
+		//lane_vector_o[events_i[3].lane][3] = events_i[3].probe_val;
 	end
 endmodule

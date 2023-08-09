@@ -27,23 +27,32 @@ module rm_lane_allocator#(
 	input [6:0]					opcode,
 	input  logic [riscv::VLEN-1:0]    		pc_i,
 	input  logic                         		entry_queued_i, 
-	input ariane_pkg::runtime_monitor_ctrl	[NUM_EVENTS-1:0]	reset_monitor, //reset monitor ctrl	
+	input ariane_pkg::lane_ctrl	[NUM_EVENTS-1:0]	reset_monitor, //reset monitor ctrl
+	input logic					flush_i,	
 	//input 						commit_ack,
 	output ariane_pkg::runtime_monitor_ctrl		monitor_o	
 	);
-	logic					monitor;
+	logic						monitor;
 	logic [$clog2(NUM_LANES)-1:0]			lane_o;
 
-	logic [NUM_LANES-1:0] 			alloc_mem;
-	logic [NUM_LANES-1:0][riscv::VLEN-1:0] 	pc_mem;
+	logic [NUM_LANES-1:0] 				alloc_mem;
+	logic [NUM_LANES-1:0][riscv::VLEN-1:0] 		pc_mem;
+	logic						some_lane_reset;
+	logic [$clog2(NUM_LANES)-1:0]			nxt_reset_lane;
 
-	assign monitor_o.lane 			= lane_o;
-	assign monitor_o.monitor_ins 		= monitor;      
+	assign monitor_o.lane 			= (some_lane_reset  && monitor && &alloc_mem)? nxt_reset_lane: ((monitor)? lane_o: '0);
+	assign monitor_o.monitor_ins 		= monitor;     
+
+
+	logic overflow;
+
+	assign overflow = (&alloc_mem) && monitor && ~some_lane_reset;
 
 	always_comb begin
 	//check if the instuction is monitored
 		monitor = 1'b0;
-		if((opcode==riscv::OpcodeStore || opcode==riscv::OpcodeLoad) && entry_queued_i) begin
+		//if((opcode==riscv::OpcodeStore || opcode==riscv::OpcodeLoad) && entry_queued_i) begin
+		if(opcode==riscv::OpcodeStore && entry_queued_i) begin
 		//if((opcode==riscv::OpcodeLoad) && entry_queued_i) begin
 			monitor = 1'b1;
 		end
@@ -56,6 +65,16 @@ module rm_lane_allocator#(
 				break;
 			end
 		end
+
+		nxt_reset_lane = '0;
+		some_lane_reset = 0;
+		for(int i=0; i<NUM_EVENTS; i++) begin
+			if(reset_monitor[i].reset_lane) begin
+				nxt_reset_lane = reset_monitor[i].lane;
+				some_lane_reset = 1;
+				break;
+			end	
+		end
 	end
 	
 	always_ff @(posedge clk_i or negedge rst_ni) begin: set_alloc
@@ -65,7 +84,7 @@ module rm_lane_allocator#(
 				pc_mem[i]	<= {riscv::VLEN{1'b0}};
 			end
 		end else begin
-			if(monitor) begin
+			if(monitor && !(&alloc_mem) && ~flush_i) begin
 				alloc_mem[lane_o] 	<= 1'b1;
 				pc_mem[lane_o]		<= pc_i;
 			end
@@ -75,8 +94,24 @@ module rm_lane_allocator#(
 //				pc_mem[commit_monitor.lane]	<= {riscv::VLEN{1'b0}};
 //			end
 			for(int i=0; i<NUM_EVENTS; i++) begin
-				if (reset_monitor[i].reset_lane)
-					alloc_mem[reset_monitor[i].lane] <= 1'b0;
+				if (reset_monitor[i].reset_lane) begin
+					alloc_mem[reset_monitor[i].lane] 	<= 1'b0;
+				        pc_mem[reset_monitor[i].lane]		<= '0;
+                                end
+				////if all lanes are filled but there is a lane to be reset next cycle and 
+				////current instruction need to be monitord then  assign that lane to incomming insctuction
+				//if (reset_monitor[i].reset_lane && monitor && &alloc_mem) begin
+				//	alloc_mem[reset_monitor[i].lane] 	<= 1'b1;
+				//	pc_mem[reset_monitor[i].lane]          	<= pc_i;
+				//end
+			end
+
+			
+			//if all lanes are filled but there is a lane to be reset next cycle and 
+			//current instruction need to be monitord then  assign that lane to incomming insctuction
+			if (some_lane_reset && monitor && (&alloc_mem) && ~flush_i) begin
+				alloc_mem[nxt_reset_lane] 	<= 1'b1;
+				pc_mem[nxt_reset_lane]         	<= pc_i;
 			end
 		end	
 	end

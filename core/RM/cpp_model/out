@@ -1,0 +1,74 @@
+g++-5 -I/home/yasas/Research/RTLruntimemonitor/FPGA/verification/VASimt/include -I/home/yasas/Research/RTLruntimemonitor/FPGA/verification/VASimt/libs/MNRL/C++/include -I/home/yasas/Research/RTLruntimemonitor/FPGA/verification/VASimt/libs/pugixml/src -I. -O3 --std=c++11 -pthread -g lane.cpp /home/yasas/Research/RTLruntimemonitor/FPGA/verification/VASimt/libvasim.a /home/yasas/Research/RTLruntimemonitor/FPGA/verification/VASimt/libs/MNRL/C++/libmnrl.a  -o laneRunner
+In file included from lane.cpp:1:0:
+lane.h:16:10: error: expected initializer before ‘constexpr’
+ uint64_t constexpr mix(char m, uint64_t s){
+          ^
+lane.h: In function ‘constexpr uint64_t hash1(const char*)’:
+lane.h:21:36: error: ‘mix’ was not declared in this scope
+     return (*m) ? mix(*m,hash1(m+1)) : 0;
+                                    ^
+lane.h:22:1: error: body of constexpr function ‘constexpr uint64_t hash1(const char*)’ not a return-statement
+ }
+ ^
+lane.h: In function ‘int idx_lookup(std::__cxx11::string)’:
+lane.h:26:19: error: ‘constexpr uint64_t hash1(const char*)’ called in a constant expression
+         case hash1("A"): return 5;
+                   ^
+lane.h:27:19: error: ‘constexpr uint64_t hash1(const char*)’ called in a constant expression
+         case hash1("B"): return 4;
+                   ^
+lane.h:28:19: error: ‘constexpr uint64_t hash1(const char*)’ called in a constant expression
+         case hash1("C"): return 3;
+                   ^
+lane.h:29:19: error: ‘constexpr uint64_t hash1(const char*)’ called in a constant expression
+         case hash1("D"): return 2;
+                   ^
+lane.h:30:19: error: ‘constexpr uint64_t hash1(const char*)’ called in a constant expression
+         case hash1("E"): return 1;
+                   ^
+lane.h:31:19: error: ‘constexpr uint64_t hash1(const char*)’ called in a constant expression
+         case hash1("F"): return 0;
+                   ^
+lane.cpp: In constructor ‘Lane::Lane(std::__cxx11::string)’:
+lane.cpp:4:12: error: declaration of ‘std::__cxx11::string input_dir’ shadows a parameter
+     string input_dir = "/home/yasas/Research/RTLruntimemonitor/RuntimeAccel/scripts/test/";
+            ^
+lane.cpp: At global scope:
+lane.cpp:73:66: error: no ‘uint32_t Lane::reorder_input(uint32_t, std::vector<int>)’ member function declared in class ‘Lane’
+ uint32_t Lane::reorder_input(uint32_t input,vector <int> ordering){
+                                                                  ^
+lane.cpp:84:45: error: no ‘bool Lane::check_automata_status(Automata*)’ member function declared in class ‘Lane’
+ bool Lane::check_automata_status(Automata *a){
+                                             ^
+lane.cpp:92:23: error: no ‘void Lane::reset_lane()’ member function declared in class ‘Lane’
+ void Lane::reset_lane() {
+                       ^
+lane.cpp:104:91: error: no ‘uint32_t Lane::simulate_lane(std::vector<unsigned int>*, std::vector<std::vector<sim_automata> >*)’ member function declared in class ‘Lane’
+ uint32_t Lane::simulate_lane(vector <uint32_t> *input, vector <vector<sim_automata>> *lane){
+                                                                                           ^
+lane.cpp:125:92: error: no ‘std::vector<unsigned int>* Lane::set_input(uint32_t, std::vector<std::vector<int> >*)’ member function declared in class ‘Lane’
+ vector <uint32_t> * Lane::set_input(uint32_t input, vector <vector<int>> *cluster_sig_order){
+                                                                                            ^
+lane.cpp:135:39: error: no ‘uint32_t Lane::simulate(uint32_t)’ member function declared in class ‘Lane’
+ uint32_t Lane::simulate(uint32_t input){
+                                       ^
+lane.cpp: In function ‘int main(int, char**)’:
+lane.cpp:214:7: error: ‘class Lane’ has no member named ‘reset_lane’
+     l.reset_lane();
+       ^
+lane.cpp:215:5: error: ‘cluster_input’ was not declared in this scope
+     cluster_input = set_input(0b100000, &cluster_sig_order);    
+     ^
+lane.cpp:215:42: error: ‘cluster_sig_order’ was not declared in this scope
+     cluster_input = set_input(0b100000, &cluster_sig_order);    
+                                          ^
+lane.cpp:215:59: error: ‘set_input’ was not declared in this scope
+     cluster_input = set_input(0b100000, &cluster_sig_order);    
+                                                           ^
+lane.cpp:216:41: error: ‘automata_clusters’ was not declared in this scope
+     cout<<simulate_lane(cluster_input, &automata_clusters)<<endl; 
+                                         ^
+lane.cpp:216:58: error: ‘simulate_lane’ was not declared in this scope
+     cout<<simulate_lane(cluster_input, &automata_clusters)<<endl; 
+                                                          ^
+make: *** [Makefile:17: lane] Error 1
