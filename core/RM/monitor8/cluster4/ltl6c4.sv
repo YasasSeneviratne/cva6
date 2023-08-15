@@ -6,19 +6,19 @@
 /*
 ******************** Summary ********************
 report for ltl6c4
-Number of nodes = 9
-Number of edges = 17
-Average edge per node = 0.529411764706
-Number of start nodes = 3
+Number of nodes = 11
+Number of edges = 22
+Average edge per node = 0.5
+Number of start nodes = 4
 Number of report nodes = 4
 does have all_input = False
 does have special element = False
 is Homogenous = True
 stride value = 1
 Max Fan-in = 4
-Max Fan-out = 3
+Max Fan-out = 4
 Max value in dim = 255
-average number of intervals per STE = 7.33333333333
+average number of intervals per STE = 8.81818181818
 #######################################################
 */
 
@@ -90,7 +90,14 @@ wire [width-1:0] input_capture;
 assign input_capture = symbols;
 assign match = match_internal;
 
-assign match_internal = (((input_capture[7:0] >= 8'd128) &&(input_capture[7:0] <= 8'd255) && 1'b1) ||
+assign match_internal = (((input_capture[7:0] >= 8'd128) &&(input_capture[7:0] <= 8'd135) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd144) &&(input_capture[7:0] <= 8'd151) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd160) &&(input_capture[7:0] <= 8'd167) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd176) &&(input_capture[7:0] <= 8'd183) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd192) &&(input_capture[7:0] <= 8'd199) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd208) &&(input_capture[7:0] <= 8'd215) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd224) &&(input_capture[7:0] <= 8'd231) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd240) &&(input_capture[7:0] <= 8'd247) && 1'b1) ||
       1'b0) ? 1'b1 : 1'b0;
 
 
@@ -101,6 +108,33 @@ endmodule
 
 
 module LUT_Match_ltl6c4_4 #(parameter integer width = 8)(
+        input clk,
+        input [width-1:0] symbols,
+        output match);
+
+wire match_internal;
+wire [width-1:0] input_capture;
+assign input_capture = symbols;
+assign match = match_internal;
+
+assign match_internal = (((input_capture[7:0] >= 8'd136) &&(input_capture[7:0] <= 8'd143) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd152) &&(input_capture[7:0] <= 8'd159) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd168) &&(input_capture[7:0] <= 8'd175) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd184) &&(input_capture[7:0] <= 8'd191) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd200) &&(input_capture[7:0] <= 8'd207) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd216) &&(input_capture[7:0] <= 8'd223) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd232) &&(input_capture[7:0] <= 8'd239) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd248) &&(input_capture[7:0] <= 8'd255) && 1'b1) ||
+      1'b0) ? 1'b1 : 1'b0;
+
+
+endmodule
+
+ 
+
+
+
+module LUT_Match_ltl6c4_5 #(parameter integer width = 8)(
         input clk,
         input [width-1:0] symbols,
         output match);
@@ -127,7 +161,7 @@ endmodule
 
 
 
-module LUT_Match_ltl6c4_5 #(parameter integer width = 8)(
+module LUT_Match_ltl6c4_6 #(parameter integer width = 8)(
         input clk,
         input [width-1:0] symbols,
         output match);
@@ -162,7 +196,7 @@ endmodule
 
 
 
-module LUT_Match_ltl6c4_6 #(parameter integer width = 8)(
+module LUT_Match_ltl6c4_7 #(parameter integer width = 8)(
         input clk,
         input [width-1:0] symbols,
         output match);
@@ -180,26 +214,6 @@ assign match_internal = (((input_capture[7:0] >= 8'd128) &&(input_capture[7:0] <
      ((input_capture[7:0] >= 8'd208) &&(input_capture[7:0] <= 8'd215) && 1'b1) ||
      ((input_capture[7:0] >= 8'd224) &&(input_capture[7:0] <= 8'd231) && 1'b1) ||
      ((input_capture[7:0] >= 8'd240) &&(input_capture[7:0] <= 8'd247) && 1'b1) ||
-      1'b0) ? 1'b1 : 1'b0;
-
-
-endmodule
-
- 
-
-
-
-module LUT_Match_ltl6c4_7 #(parameter integer width = 8)(
-        input clk,
-        input [width-1:0] symbols,
-        output match);
-
-wire match_internal;
-wire [width-1:0] input_capture;
-assign input_capture = symbols;
-assign match = match_internal;
-
-assign match_internal = (((input_capture[7:0] >= 8'd0) &&(input_capture[7:0] <= 8'd255) && 1'b1) ||
       1'b0) ? 1'b1 : 1'b0;
 
 
@@ -227,6 +241,14 @@ assign match_internal = (((input_capture[7:0] >= 8'd0) &&(input_capture[7:0] <= 
      ((input_capture[7:0] >= 8'd80) &&(input_capture[7:0] <= 8'd87) && 1'b1) ||
      ((input_capture[7:0] >= 8'd96) &&(input_capture[7:0] <= 8'd103) && 1'b1) ||
      ((input_capture[7:0] >= 8'd112) &&(input_capture[7:0] <= 8'd119) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd128) &&(input_capture[7:0] <= 8'd135) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd144) &&(input_capture[7:0] <= 8'd151) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd160) &&(input_capture[7:0] <= 8'd167) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd176) &&(input_capture[7:0] <= 8'd183) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd192) &&(input_capture[7:0] <= 8'd199) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd208) &&(input_capture[7:0] <= 8'd215) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd224) &&(input_capture[7:0] <= 8'd231) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd240) &&(input_capture[7:0] <= 8'd247) && 1'b1) ||
       1'b0) ? 1'b1 : 1'b0;
 
 
@@ -237,6 +259,53 @@ endmodule
 
 
 module LUT_Match_ltl6c4_9 #(parameter integer width = 8)(
+        input clk,
+        input [width-1:0] symbols,
+        output match);
+
+wire match_internal;
+wire [width-1:0] input_capture;
+assign input_capture = symbols;
+assign match = match_internal;
+
+assign match_internal = (((input_capture[7:0] >= 8'd0) &&(input_capture[7:0] <= 8'd255) && 1'b1) ||
+      1'b0) ? 1'b1 : 1'b0;
+
+
+endmodule
+
+ 
+
+
+
+module LUT_Match_ltl6c4_10 #(parameter integer width = 8)(
+        input clk,
+        input [width-1:0] symbols,
+        output match);
+
+wire match_internal;
+wire [width-1:0] input_capture;
+assign input_capture = symbols;
+assign match = match_internal;
+
+assign match_internal = (((input_capture[7:0] >= 8'd0) &&(input_capture[7:0] <= 8'd7) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd16) &&(input_capture[7:0] <= 8'd23) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd32) &&(input_capture[7:0] <= 8'd39) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd48) &&(input_capture[7:0] <= 8'd55) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd64) &&(input_capture[7:0] <= 8'd71) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd80) &&(input_capture[7:0] <= 8'd87) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd96) &&(input_capture[7:0] <= 8'd103) && 1'b1) ||
+     ((input_capture[7:0] >= 8'd112) &&(input_capture[7:0] <= 8'd119) && 1'b1) ||
+      1'b0) ? 1'b1 : 1'b0;
+
+
+endmodule
+
+ 
+
+
+
+module LUT_Match_ltl6c4_11 #(parameter integer width = 8)(
         input clk,
         input [width-1:0] symbols,
         output match);
@@ -266,10 +335,10 @@ module Automata_ltl6c4(input clk,
            input reset,
            input [7 : 0] symbols
            
-           , output ltl6c4_w_out_3
-           , output ltl6c4_w_out_5
-           , output ltl6c4_w_out_7
-           , output ltl6c4_w_out_9);
+           , output ltl6c4_w_out_4
+           , output ltl6c4_w_out_6
+           , output ltl6c4_w_out_9
+           , output ltl6c4_w_out_11);
 
 wire all_input;
 wire start_of_data;
@@ -351,6 +420,7 @@ STE #(.fan_in(2),.START_TYPE(1)) ltl6c4_ste_2 (
                 .active_state(ltl6c4_w_out_2));
 
 
+wire ltl6c4_w_out_3;
 wire ltl6c4_lut_match_3;
 wire ltl6c4_w_match_3;
 
@@ -376,7 +446,6 @@ STE #(.fan_in(2),.START_TYPE(1)) ltl6c4_ste_3 (
                 .active_state(ltl6c4_w_out_3));
 
 
-wire ltl6c4_w_out_4;
 wire ltl6c4_lut_match_4;
 wire ltl6c4_w_match_4;
 
@@ -392,16 +461,17 @@ LUT_Match_ltl6c4_4 #(8) lut_match_ltl6c4_4(
 
 assign ltl6c4_w_match_4 = ltl6c4_lut_match_4 ;
 
-STE #(.fan_in(2)) ltl6c4_ste_4 (
+STE #(.fan_in(2),.START_TYPE(1)) ltl6c4_ste_4 (
                 .clk(clk),
                 .run(run),
                 .reset(reset),
 		.start_of_data,
-                .income_edges({ ltl6c4_w_out_2, ltl6c4_w_out_4 }),
+                .income_edges({ start_of_data, ltl6c4_w_out_1 }),
                 .match(ltl6c4_w_match_4) ,
                 .active_state(ltl6c4_w_out_4));
 
 
+wire ltl6c4_w_out_5;
 wire ltl6c4_lut_match_5;
 wire ltl6c4_w_match_5;
 
@@ -422,12 +492,11 @@ STE #(.fan_in(2)) ltl6c4_ste_5 (
                 .run(run),
                 .reset(reset),
 		.start_of_data,
-                .income_edges({ ltl6c4_w_out_2, ltl6c4_w_out_4 }),
+                .income_edges({ ltl6c4_w_out_2, ltl6c4_w_out_5 }),
                 .match(ltl6c4_w_match_5) ,
                 .active_state(ltl6c4_w_out_5));
 
 
-wire ltl6c4_w_out_6;
 wire ltl6c4_lut_match_6;
 wire ltl6c4_w_match_6;
 
@@ -443,16 +512,17 @@ LUT_Match_ltl6c4_6 #(8) lut_match_ltl6c4_6(
 
 assign ltl6c4_w_match_6 = ltl6c4_lut_match_6 ;
 
-STE #(.fan_in(2)) ltl6c4_ste_6 (
+STE #(.fan_in(4)) ltl6c4_ste_6 (
                 .clk(clk),
                 .run(run),
                 .reset(reset),
 		.start_of_data,
-                .income_edges({ ltl6c4_w_out_2, ltl6c4_w_out_4 }),
+                .income_edges({ ltl6c4_w_out_8, ltl6c4_w_out_2, ltl6c4_w_out_3, ltl6c4_w_out_5 }),
                 .match(ltl6c4_w_match_6) ,
                 .active_state(ltl6c4_w_out_6));
 
 
+wire ltl6c4_w_out_7;
 wire ltl6c4_lut_match_7;
 wire ltl6c4_w_match_7;
 
@@ -468,12 +538,12 @@ LUT_Match_ltl6c4_7 #(8) lut_match_ltl6c4_7(
 
 assign ltl6c4_w_match_7 = ltl6c4_lut_match_7 ;
 
-STE #(.fan_in(4)) ltl6c4_ste_7 (
+STE #(.fan_in(2)) ltl6c4_ste_7 (
                 .clk(clk),
                 .run(run),
                 .reset(reset),
 		.start_of_data,
-                .income_edges({ ltl6c4_w_out_9, ltl6c4_w_out_3, ltl6c4_w_out_5, ltl6c4_w_out_7 }),
+                .income_edges({ ltl6c4_w_out_2, ltl6c4_w_out_5 }),
                 .match(ltl6c4_w_match_7) ,
                 .active_state(ltl6c4_w_out_7));
 
@@ -499,7 +569,7 @@ STE #(.fan_in(2)) ltl6c4_ste_8 (
                 .run(run),
                 .reset(reset),
 		.start_of_data,
-                .income_edges({ ltl6c4_w_out_8, ltl6c4_w_out_6 }),
+                .income_edges({ ltl6c4_w_out_8, ltl6c4_w_out_3 }),
                 .match(ltl6c4_w_match_8) ,
                 .active_state(ltl6c4_w_out_8));
 
@@ -519,14 +589,65 @@ LUT_Match_ltl6c4_9 #(8) lut_match_ltl6c4_9(
 
 assign ltl6c4_w_match_9 = ltl6c4_lut_match_9 ;
 
-STE #(.fan_in(2)) ltl6c4_ste_9 (
+STE #(.fan_in(4)) ltl6c4_ste_9 (
                 .clk(clk),
                 .run(run),
                 .reset(reset),
 		.start_of_data,
-                .income_edges({ ltl6c4_w_out_8, ltl6c4_w_out_6 }),
+                .income_edges({ ltl6c4_w_out_9, ltl6c4_w_out_11, ltl6c4_w_out_4, ltl6c4_w_out_6 }),
                 .match(ltl6c4_w_match_9) ,
                 .active_state(ltl6c4_w_out_9));
+
+
+wire ltl6c4_w_out_10;
+wire ltl6c4_lut_match_10;
+wire ltl6c4_w_match_10;
+
+    
+    
+    
+
+LUT_Match_ltl6c4_10 #(8) lut_match_ltl6c4_10(
+                .clk(clk),
+                .symbols(symbols),
+                .match(ltl6c4_lut_match_10));
+
+
+assign ltl6c4_w_match_10 = ltl6c4_lut_match_10 ;
+
+STE #(.fan_in(2)) ltl6c4_ste_10 (
+                .clk(clk),
+                .run(run),
+                .reset(reset),
+		.start_of_data,
+                .income_edges({ ltl6c4_w_out_10, ltl6c4_w_out_7 }),
+                .match(ltl6c4_w_match_10) ,
+                .active_state(ltl6c4_w_out_10));
+
+
+wire ltl6c4_lut_match_11;
+wire ltl6c4_w_match_11;
+
+    
+    
+    
+
+LUT_Match_ltl6c4_11 #(8) lut_match_ltl6c4_11(
+                .clk(clk),
+                .symbols(symbols),
+                .match(ltl6c4_lut_match_11));
+
+
+assign ltl6c4_w_match_11 = ltl6c4_lut_match_11 ;
+
+STE #(.fan_in(2)) ltl6c4_ste_11 (
+                .clk(clk),
+                .run(run),
+                .reset(reset),
+		.start_of_data,
+                .income_edges({ ltl6c4_w_out_10, ltl6c4_w_out_7 }),
+                .match(ltl6c4_w_match_11) ,
+                .active_state(ltl6c4_w_out_11));
 
 
 
