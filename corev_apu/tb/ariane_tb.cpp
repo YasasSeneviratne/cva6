@@ -38,6 +38,8 @@
 #include <ctime>
 #include <signal.h>
 #include <unistd.h>
+#include <fstream>
+#include <string>
 
 #include <fesvr/dtm.h>
 #include <fesvr/htif_hexwriter.h>
@@ -345,6 +347,19 @@ done_processing:
 #endif
   // memif.read(0x84000000, mem_size, (void *)top->ariane_testharness__DOT__i_sram__DOT__gen_cut__BRA__0__KET____DOT__gen_mem__DOT__gen_mem_user__DOT__i_tc_sram_wrapper_user__DOT__i_tc_sram__DOT__sram);
 
+  //-------------------------
+  // Runtime monitor reporting
+  //-------------------------
+  uint32_t num_lanes = top->num_lanes;
+  uint32_t num_rules = top->num_rules;
+
+  std::vector <std::ofstream *> loglist;
+  for(int i=0; i<num_lanes; i++) {
+    std::ofstream * log = new std::ofstream;
+    log->open("monitor"+std::to_string(i)+".log");
+    loglist.push_back(log);
+  }
+
   while (!dtm->done() && !jtag->done() && !(top->exit_o & 0x1)) {
     top->clk_i = 0;
     top->eval();
@@ -355,6 +370,16 @@ done_processing:
 
     top->clk_i = 1;
     top->eval();
+
+    //for(auto log= loglist.begin(); log != loglist.end(); ++log) {
+    for(int j=0; j<num_lanes; j++) {
+      int vec_len = ((num_rules/32)); //num_rules must be 32 bit alighned
+      for(int i=vec_len-1; i>=0; i--){
+        (*loglist[j])<<std::setw(8)<<std::hex<<std::setfill('0')<< top->monitor_o[i+vec_len*j];
+      }
+      (*loglist[j])<<std::endl;
+    }
+    
 #if VM_TRACE
     if (vcdfile || fst_fname)
       tfp->dump(static_cast<vluint64_t>(main_time * 2 + 1));
@@ -365,6 +390,13 @@ done_processing:
     }
     main_time++;
   }
+
+
+  for(auto log= loglist.begin(); log != loglist.end(); ++log) {
+    (*log)->close();
+    delete *log;
+  }
+
 
 #if VM_TRACE
   if (tfp)

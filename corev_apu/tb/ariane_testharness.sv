@@ -28,8 +28,16 @@ module ariane_testharness #(
   input  logic                           clk_i,
   input  logic                           rtc_i,
   input  logic                           rst_ni,
-  output logic [31:0]                    exit_o
+  output logic [31:0]                    exit_o,
+  output logic [ariane_pkg::RM_NUM_LANES-1: 0][ariane_pkg::RM_NUM_RULES-1:0]           monitor_o,
+  output int unsigned num_lanes,
+  output int unsigned num_rules
 );
+
+  // pass parameters to cpp world
+  assign num_lanes = ariane_pkg::RM_NUM_LANES;
+  assign num_rules = ariane_pkg::RM_NUM_RULES;
+
 
   localparam [7:0] hart_id = '0;
 
@@ -120,6 +128,14 @@ module ariane_testharness #(
   end
   assign jtag_resp_valid     = (jtag_enable[0]) ? debug_resp_valid   : 1'b0;
   assign dmi_resp_valid      = (jtag_enable[0]) ? 1'b0               : debug_resp_valid;
+
+  // ---------------
+  // Runtime monitoring
+  // ---------------
+  
+  //logic [ariane_pkg::RM_NUM_LANES-1: 0][ariane_pkg::RM_NUM_RULES-1:0]           monitor_o;
+  assign monitor_o = i_ariane.i_cva6.monitor_o;
+
 
   // SiFive's SimJTAG Module
   // Converts to DPI calls
