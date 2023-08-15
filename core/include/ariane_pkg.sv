@@ -497,6 +497,7 @@ package ariane_pkg;
         logic [$clog2(RM_NUM_LANES)-1:0]     	lane;       	// Runtime monitor lane the instruction events need to be forwarded to
         logic 			   				monitor_ins;    // if this is a monitored instruction?
 	logic							reset_lane;     // reset lane
+	logic [riscv::VLEN-1:0] pc;     // foe debuging
     } runtime_monitor_ctrl;
 	
     
