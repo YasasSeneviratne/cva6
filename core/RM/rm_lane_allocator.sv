@@ -42,6 +42,7 @@ module rm_lane_allocator#(
 
 	assign monitor_o.lane 			= (some_lane_reset  && monitor && &alloc_mem)? nxt_reset_lane: ((monitor)? lane_o: '0);
 	assign monitor_o.monitor_ins 		= monitor;     
+	assign monitor_o.pc 			= pc_i;     
 
 
 	logic overflow;
@@ -84,28 +85,17 @@ module rm_lane_allocator#(
 				pc_mem[i]	<= {riscv::VLEN{1'b0}};
 			end
 		end else begin
-			if(monitor && !(&alloc_mem) && ~flush_i) begin
-				alloc_mem[lane_o] 	<= 1'b1;
-				pc_mem[lane_o]		<= pc_i;
-			end
-			
-//			if(commit_ack == 1'b1 && commit_monitor.monitor_ins == 1'b1) begin
-//				alloc_mem[commit_monitor.lane] 	<= 1'b0;
-//				pc_mem[commit_monitor.lane]	<= {riscv::VLEN{1'b0}};
-//			end
 			for(int i=0; i<NUM_EVENTS; i++) begin
 				if (reset_monitor[i].reset_lane) begin
 					alloc_mem[reset_monitor[i].lane] 	<= 1'b0;
 				        pc_mem[reset_monitor[i].lane]		<= '0;
                                 end
-				////if all lanes are filled but there is a lane to be reset next cycle and 
-				////current instruction need to be monitord then  assign that lane to incomming insctuction
-				//if (reset_monitor[i].reset_lane && monitor && &alloc_mem) begin
-				//	alloc_mem[reset_monitor[i].lane] 	<= 1'b1;
-				//	pc_mem[reset_monitor[i].lane]          	<= pc_i;
-				//end
 			end
 
+			if(monitor && !(&alloc_mem) && ~flush_i) begin
+				alloc_mem[lane_o] 	<= 1'b1;
+				pc_mem[lane_o]		<= pc_i;
+			end
 			
 			//if all lanes are filled but there is a lane to be reset next cycle and 
 			//current instruction need to be monitord then  assign that lane to incomming insctuction

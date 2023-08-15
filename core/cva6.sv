@@ -1582,7 +1582,8 @@ rm_event_detector #(
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].rm_cnt),
 	.lane_cnt_o(rm_event_o[20]),
 	.reset_lane_i(0),
-	.leaf_reset_trigger(tmp1)
+	//.leaf_reset_trigger(tmp1)
+	.leaf_reset_trigger(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[0].valid)
 	);
 
 //wire stb_com_1_s1 = 
@@ -1604,7 +1605,8 @@ rm_event_detector #(
 	.rm_cnt_i(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].rm_cnt),
 	.lane_cnt_o(rm_event_o[21]),
 	.reset_lane_i(0),
-	.leaf_reset_trigger(tmp2) 
+	//.leaf_reset_trigger(tmp2) 
+	.leaf_reset_trigger(ex_stage_i.lsu_i.i_store_unit.store_buffer_i.commit_queue_q[1].valid)
 	);
 
 //wire stb_spec_0_s1 = 

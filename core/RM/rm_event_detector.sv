@@ -73,11 +73,16 @@ module rm_event_detector#(
 	logic [NUM_LANES-1:0] 	lane_probe_reg;
 	logic 			probe_val;
 	logic 			probe_val_o;
-	//logic			reset_lane;
+	logic			reset_o;
+	logic			reset_o_reg;
+	logic			reset_val;
+        
 	
 	assign lane_cnt_o.probe_val 	= probe_val_o;
 	assign lane_cnt_o.lane		= lane_o;
-	assign lane_cnt_o.reset_lane	= (LEAF_EVENT && rm_cnt_i.monitor_ins && leaf_reset_trigger) ? 1'b1: (( rm_cnt_i.monitor_ins) ? reset_lane_i: 1'b0);
+	assign lane_cnt_o.reset_lane	= reset_o;
+
+	assign reset_val         	= (LEAF_EVENT && rm_cnt_i.monitor_ins && leaf_reset_trigger) ? 1'b1: (( rm_cnt_i.monitor_ins) ? reset_lane_i: 1'b0);
 
 	always_comb begin
 		lane_o  = rm_cnt_i.lane;
@@ -94,10 +99,13 @@ module rm_event_detector#(
 	end
 
 	assign probe_val_o =  (probe_val & ~lane_probe_reg[lane_o]);
- 
+        assign reset_o     =  reset_val & ~reset_o_reg; 
+
+
 	always_ff @ (posedge clk_i or negedge rst_ni) begin: regval
 	if (~rst_ni) begin 
 		lane_probe_reg <= '0;
+                reset_o_reg    <= 1'b0;
 	end
 	else  begin
 		if(rm_cnt_i.monitor_ins == 1'b1) begin
@@ -108,8 +116,10 @@ module rm_event_detector#(
 				lane_probe_reg[i] <= 1'b0;
 		end
 		end
-		else
+		else begin
 			lane_probe_reg <= '0; 
+                end
+                reset_o_reg <= reset_val;
 	end
 	end 
 
