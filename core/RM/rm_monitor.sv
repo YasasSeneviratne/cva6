@@ -15,8 +15,8 @@ module rm_monitor#(
 	generate
 		for(i=0;i<NUM_LANES;i++) begin
 			rm_lane #(
-			.NUM_EVENTS,
-			.NUM_RULES)
+			.NUM_EVENTS(NUM_EVENTS),
+			.NUM_RULES(NUM_RULES))
 			lane(
 			.clk_i,
 			.lane_vector_i(lane_vector_i[i]),

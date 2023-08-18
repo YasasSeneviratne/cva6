@@ -146,9 +146,9 @@ ${CVA6_REPO_DIR}/core/RM/rm_event_router.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/rm_lane.sv
 ${CVA6_REPO_DIR}/core/RM/rm_monitor.sv
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/stage0.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/stage0C0.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/ste.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/top_moduleC0.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/ltl0c0.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/ltl10c0.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/ltl1c0.sv
@@ -162,8 +162,8 @@ ${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/ltl8c0.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster0/ltl9c0.sv
 
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/stage0.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/stage0C1.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/top_moduleC1.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/ltl0c1.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/ltl1c1.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/ltl2c1.sv
@@ -175,8 +175,8 @@ ${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/ltl7c1.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster1/ltl8c1.sv
 
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/stage0.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/stage0C2.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/top_moduleC2.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/ltl0c2.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/ltl1c2.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/ltl2c2.sv
@@ -188,8 +188,8 @@ ${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/ltl7c2.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/ltl8c2.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster2/ltl9c2.sv
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/stage0.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/stage0C3.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/top_moduleC3.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/ltl0c3.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/ltl1c3.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/ltl2c3.sv
@@ -201,8 +201,8 @@ ${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/ltl7c3.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/ltl8c3.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster3/ltl9c3.sv
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/stage0.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/stage0C4.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/top_moduleC4.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/ltl0c4.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/ltl1c4.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/ltl2c4.sv
@@ -212,8 +212,8 @@ ${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/ltl5c4.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster4/ltl6c4.sv
 
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/stage0.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/stage0C5.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/top_moduleC5.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/ltl0c5.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/ltl1c5.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/ltl2c5.sv
@@ -225,8 +225,8 @@ ${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/ltl7c5.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster5/ltl8c5.sv
 
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/stage0.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/stage0C6.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/top_moduleC6.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/ltl0c6.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/ltl1c6.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/ltl2c6.sv
@@ -243,8 +243,8 @@ ${CVA6_REPO_DIR}/core/RM/monitor8/cluster6/ltl12c6.sv
 
 
 
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster7/stage0.v
-${CVA6_REPO_DIR}/core/RM/monitor8/cluster7/top_module.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster7/stage0C7.v
+${CVA6_REPO_DIR}/core/RM/monitor8/cluster7/top_moduleC7.v
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster7/ltl0c7.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster7/ltl1c7.sv
 ${CVA6_REPO_DIR}/core/RM/monitor8/cluster7/ltl2c7.sv
