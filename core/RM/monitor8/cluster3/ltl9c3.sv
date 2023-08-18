@@ -1013,7 +1013,6 @@ module Automata_ltl9c3(input clk,
            , output ltl9c3_w_out_11);
 
 wire all_input;
-wire start_of_data;
 
 assign all_input = 1'b1;
 logic start_of_data;

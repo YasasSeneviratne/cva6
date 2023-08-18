@@ -565,7 +565,6 @@ module Automata_ltl8c1(input clk,
            , output ltl8c1_w_out_11);
 
 wire all_input;
-wire start_of_data;
 
 assign all_input = 1'b1;
 logic start_of_data;

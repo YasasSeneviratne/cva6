@@ -437,7 +437,6 @@ module Automata_ltl7c1(input clk,
            , output ltl7c1_w_out_11);
 
 wire all_input;
-wire start_of_data;
 
 assign all_input = 1'b1;
 logic start_of_data;

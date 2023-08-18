@@ -509,7 +509,6 @@ module Automata_ltl10c6(input clk,
            , output ltl10c6_w_out_11);
 
 wire all_input;
-wire start_of_data;
 
 assign all_input = 1'b1;
 logic start_of_data;
