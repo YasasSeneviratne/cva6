@@ -39,7 +39,8 @@ module id_stage (
     input  logic                          	tw_i,
     input  logic                          	tsr_i,
     // for RM
-    input  ariane_pkg::lane_ctrl [ariane_pkg::RM_NUM_EVENTS-1:0]	reset_monitor
+    input  ariane_pkg::lane_ctrl [ariane_pkg::RM_NUM_EVENTS-1:0]	reset_monitor,
+    output ariane_pkg::lane_ctrl                            rm_event_id_stage_s1_o
 );
     // ID/ISSUE register stage
     typedef struct packed {
@@ -161,4 +162,20 @@ module id_stage (
             issue_q <= issue_n;
         end
     end
+
+
+    rm_event_detector #(
+       .NUM_VARS(1),
+       .NUM_LANES(ariane_pkg::RM_NUM_LANES)
+       )
+       id_stage_s1 (
+       .clk_i,
+       .rst_ni,
+       .signal(issue_q.valid),
+       .ref_val(1'b1),
+       .rm_cnt_i(issue_q.sbe.rm_cnt),
+       .lane_cnt_o(rm_event_id_stage_s1_o),
+       .leaf_reset_trigger(0),
+       .reset_lane_i(flush_i)
+       );
 endmodule

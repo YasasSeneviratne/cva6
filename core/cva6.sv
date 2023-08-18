@@ -46,7 +46,9 @@ module cva6 import ariane_pkg::*; #(
   input  wt_cache_pkg::l15_rtrn_t      l15_rtrn_i,
   // memory side, AXI Master
   output axi_req_t                     axi_req_o,
-  input  axi_rsp_t                     axi_resp_i
+  input  axi_rsp_t                     axi_resp_i,
+  // runtime monitoring
+  output logic [RM_NUM_LANES-1: 0][RM_NUM_RULES-1:0]   	monitor_o
 );
 
   // ------------------------------------------
@@ -259,9 +261,41 @@ module cva6 import ariane_pkg::*; #(
   // Runtime Monitor
   //---------------
   lane_ctrl [RM_NUM_EVENTS-1: 0]		rm_event_o; 
-  logic [RM_NUM_LANES-1: 0][RM_NUM_RULES-1:0]   	monitor_o;
+//  logic [RM_NUM_LANES-1: 0][RM_NUM_RULES-1:0]   	monitor_o;
   logic [RM_NUM_EVENTS-1:0][RM_NUM_LANES-1:0]   	lane_vector;
   logic [RM_NUM_LANES-1:0]   			lane_reset; 
+
+  lane_ctrl rm_event_id_stage_s1_o;
+//  lane_ctrl rm_event_issue_s16_o;	
+//  lane_ctrl rm_event_lsq_enq_0_s1_o;	
+//  lane_ctrl rm_event_lsq_enq_1_s1_o;	
+//  lane_ctrl rm_event_scb_0_s12_o;	
+//  lane_ctrl rm_event_scb_0_s13_o;	
+//  lane_ctrl rm_event_scb_0_s14_o;	
+//  lane_ctrl rm_event_scb_0_s8_o;	
+//  lane_ctrl rm_event_scb_1_s12_o;	
+//  lane_ctrl rm_event_scb_1_s13_o;	
+//  lane_ctrl rm_event_scb_1_s14_o;	
+//  lane_ctrl rm_event_scb_1_s8_o;	
+//  lane_ctrl rm_event_scb_2_s12_o;	
+//  lane_ctrl rm_event_scb_2_s13_o;	
+//  lane_ctrl rm_event_scb_2_s14_o;	
+//  lane_ctrl rm_event_scb_2_s8_o;	
+//  lane_ctrl rm_event_scb_3_s12_o;	
+//  lane_ctrl rm_event_scb_3_s13_o;	
+//  lane_ctrl rm_event_scb_3_s14_o;	
+//  lane_ctrl rm_event_scb_3_s8_o;	
+//  lane_ctrl rm_event_stb_com_0_s1_o;	
+//  lane_ctrl rm_event_stb_com_1_s1_o;	
+//  lane_ctrl rm_event_stb_spec_0_s1_o;	
+//  lane_ctrl rm_event_stb_spec_1_s1_o;	
+//  lane_ctrl rm_event_load_unit_s1_o;	
+//  lane_ctrl rm_event_store_unit_s1_o;	
+//  lane_ctrl rm_event_store_unit_s3_o;	
+//  lane_ctrl rm_event_load_unit_buff_s1_o;	
+//  lane_ctrl rm_event_load_unit_op_s1_o;	
+//  lane_ctrl rm_event_load_unit_op_s2_o;	
+//  lane_ctrl rm_event_load_unit_op_s3_o;	
   // --------------
   // Frontend
   // --------------
@@ -315,7 +349,8 @@ module cva6 import ariane_pkg::*; #(
     .tvm_i                      ( tvm_csr_id                 ),
     .tw_i                       ( tw_csr_id                  ),
     .tsr_i                      ( tsr_csr_id                 ),
-    .reset_monitor		( rm_event_o		     )
+    .reset_monitor		( rm_event_o		     ),
+    .rm_event_id_stage_s1_o     ( rm_event_id_stage_s1_o     )
   );
 
   logic [NR_WB_PORTS-1:0][TRANS_ID_BITS-1:0] trans_id_ex_id;
@@ -994,27 +1029,57 @@ module cva6 import ariane_pkg::*; #(
 
 //TODO use generate blocks for event detectors with similar interfaces??
 
-localparam pc0 = 0;
 //wire id_stage_s1 = 
 //	(id_stage_i.issue_q.sbe.pc == pc0) && 
 //	(id_stage_i.issue_q.valid == 1'd1) && 
 //	 1'b1; 
 
-rm_event_detector #(
-	.NUM_VARS(1),
-	.NUM_LANES(RM_NUM_LANES)
-	) 
-	id_stage_s1 (
-    	.clk_i,
-    	.rst_ni,
-	.signal(id_stage_i.issue_q.valid),
-	.ref_val(1'b1),
-	.rm_cnt_i(id_stage_i.issue_q.sbe.rm_cnt),
-	.lane_cnt_o(rm_event_o[0]),
-	.leaf_reset_trigger(0),
-	.reset_lane_i(flush_ctrl_if)
-	);
-	
+//rm_event_detector #(
+//	.NUM_VARS(1),
+//	.NUM_LANES(RM_NUM_LANES)
+//	) 
+//	id_stage_s1 (
+//    	.clk_i,
+//    	.rst_ni,
+//	.signal(id_stage_i.issue_q.valid),
+//	.ref_val(1'b1),
+//	.rm_cnt_i(id_stage_i.issue_q.sbe.rm_cnt),
+//	.lane_cnt_o(rm_event_o[0]),
+//	.leaf_reset_trigger(0),
+//	.reset_lane_i(flush_ctrl_if)
+//	);
+assign rm_event_o[0] = rm_event_id_stage_s1_o;	
+//assign rm_event_o[1] = rm_event_issue_s16_o;	
+//assign rm_event_o[2] = rm_event_lsq_enq_0_s1_o;	
+//assign rm_event_o[3] = rm_event_lsq_enq_1_s1_o;	
+//assign rm_event_o[4] = rm_event_scb_0_s12_o;	
+//assign rm_event_o[5] = rm_event_scb_0_s13_o;	
+//assign rm_event_o[6] = rm_event_scb_0_s14_o;	
+//assign rm_event_o[7] = rm_event_scb_0_s8_o;	
+//assign rm_event_o[8] = rm_event_scb_1_s12_o;	
+//assign rm_event_o[9] = rm_event_scb_1_s13_o;	
+//assign rm_event_o[10] = rm_event_scb_1_s14_o;	
+//assign rm_event_o[11] = rm_event_scb_1_s8_o;	
+//assign rm_event_o[12] = rm_event_scb_2_s12_o;	
+//assign rm_event_o[13] = rm_event_scb_2_s13_o;	
+//assign rm_event_o[14] = rm_event_scb_2_s14_o;	
+//assign rm_event_o[15] = rm_event_scb_2_s8_o;	
+//assign rm_event_o[16] = rm_event_scb_3_s12_o;	
+//assign rm_event_o[17] = rm_event_scb_3_s13_o;	
+//assign rm_event_o[18] = rm_event_scb_3_s14_o;	
+//assign rm_event_o[19] = rm_event_scb_3_s8_o;	
+//assign rm_event_o[20] = rm_event_stb_com_0_s1_o;	
+//assign rm_event_o[21] = rm_event_stb_com_1_s1_o;	
+//assign rm_event_o[22] = rm_event_stb_spec_0_s1_o;	
+//assign rm_event_o[23] = rm_event_stb_spec_1_s1_o;	
+//assign rm_event_o[24] = rm_event_load_unit_s1_o;	
+//assign rm_event_o[25] = rm_event_store_unit_s1_o;	
+//assign rm_event_o[26] = rm_event_store_unit_s3_o;	
+//assign rm_event_o[27] = rm_event_load_unit_buff_s1_o;	
+//assign rm_event_o[28] = rm_event_load_unit_op_s1_o;	
+//assign rm_event_o[29] = rm_event_load_unit_op_s2_o;	
+//assign rm_event_o[30] = rm_event_load_unit_op_s3_o;	
+//assign rm_event_o[31] = '0;	
 //wire issue_s16 = 
 //	(issue_stage_i.i_issue_read_operands.pc_o == pc0) && 
 //	(issue_stage_i.i_issue_read_operands.alu_valid_q == 1'd0) && 

@@ -695,6 +695,7 @@ end
 // ---------------
 ariane_axi::req_t    axi_ariane_req;
 ariane_axi::resp_t   axi_ariane_resp;
+logic [ariane_pkg::RM_NUM_LANES-1: 0][ariane_pkg::RM_NUM_RULES-1:0]         monitor_o; 
 
 ariane #(
     .ArianeCfg ( ariane_soc::ArianeSocCfg )
@@ -708,11 +709,25 @@ ariane #(
     .time_irq_i   ( timer_irq           ),
     .debug_req_i  ( debug_req_irq       ),
     .axi_req_o    ( axi_ariane_req      ),
-    .axi_resp_i   ( axi_ariane_resp     )
+    .axi_resp_i   ( axi_ariane_resp     ),
+    .monitor_o
 );
 
 `AXI_ASSIGN_FROM_REQ(slave[0], axi_ariane_req)
 `AXI_ASSIGN_TO_RESP(axi_ariane_resp, slave[0])
+
+
+xlnx_vio vio(
+.clk(clk_i),
+.probe_in0(monitor_o[0]),
+.probe_in1(monitor_o[1]),
+.probe_in2(monitor_o[2]),
+.probe_in3(monitor_o[3]),
+.probe_in4(monitor_o[4]),
+.probe_in5(monitor_o[5]),
+.probe_in6(monitor_o[6]),
+.probe_in7(monitor_o[7])
+);
 
 // ---------------
 // CLINT

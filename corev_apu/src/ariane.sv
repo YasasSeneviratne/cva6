@@ -48,8 +48,10 @@ module ariane import ariane_pkg::*; #(
 `else
   // memory side, AXI Master
   output axi_req_t                     axi_req_o,
-  input  axi_rsp_t                     axi_resp_i
+  input  axi_rsp_t                     axi_resp_i,
 `endif
+  output logic [RM_NUM_LANES-1: 0][RM_NUM_RULES-1:0]    monitor_o
+
 );
 
   cvxif_pkg::cvxif_req_t  cvxif_req;
@@ -74,6 +76,7 @@ module ariane import ariane_pkg::*; #(
     .ipi_i                ( ipi_i                     ),
     .time_irq_i           ( time_irq_i                ),
     .debug_req_i          ( debug_req_i               ),
+    .monitor_o,
 `ifdef RVFI_PORT
     .rvfi_o               ( rvfi_o                    ),
 `else

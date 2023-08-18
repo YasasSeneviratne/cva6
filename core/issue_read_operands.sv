@@ -75,6 +75,7 @@ module issue_read_operands import ariane_pkg::*; #(
     output logic                                   stall_issue_o,  // stall signal, we do not want to fetch any more entries
     // RM
     output runtime_monitor_ctrl		   rm_o
+    //output lane_ctrl			   rm_event_issue_s16_o
     // committing instruction instruction
     // from scoreboard
     // input  scoreboard_entry     commit_instr_i,
@@ -323,6 +324,7 @@ module issue_read_operands import ariane_pkg::*; #(
             fpu_valid_q    <= 1'b0;
             csr_valid_q    <= 1'b0;
             branch_valid_q <= 1'b0;
+	    rm_o		<= '0;
         end
       end
     end
@@ -347,7 +349,6 @@ module issue_read_operands import ariane_pkg::*; #(
           if (flush_i) begin
               cvxif_valid_q  <= 1'b0;
               cvxif_off_instr_q <= 32'b0;
-	      rm_o		<= '0;
           end
         end
       end
@@ -534,6 +535,28 @@ module issue_read_operands import ariane_pkg::*; #(
         end
     end
 
+
+//    rm_event_detector #(
+//	.NUM_VARS(6 ),
+//	.NUM_LANES(RM_NUM_LANES)
+//	) 
+//	issue_s16 (
+//        .clk_i,
+//        .rst_ni,
+//	.signal({
+//	alu_valid_q, 
+//	lsu_valid_q, 
+//	mult_valid_q, 
+//	fpu_valid_q, 
+//	csr_valid_q, 
+//	branch_valid_q 
+//	}),
+//	.ref_val(6'b010000),
+//	.rm_cnt_i(rm_o),
+//	.lane_cnt_o(rm_event_o[1]),
+//	.leaf_reset_trigger(0),
+//	.reset_lane_i(flush_i)
+//	);
     //pragma translate_off
     initial begin
         assert (NR_RGPR_PORTS == 2 || (NR_RGPR_PORTS == 3 && CVXIF_PRESENT))

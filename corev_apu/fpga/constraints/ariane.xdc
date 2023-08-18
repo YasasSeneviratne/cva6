@@ -3,6 +3,9 @@
 create_clock -period 100.000 -name tck -waveform {0.000 50.000} [get_ports tck]
 set_input_jitter tck 1.000
 
+# debug clk connect for vio
+connect_debug_port dbg_hub/clk [get_nets clk]
+
 # minimize routing delay
 set_input_delay  -clock tck -clock_fall 5 [get_ports tdi    ]
 set_input_delay  -clock tck -clock_fall 5 [get_ports tms    ]

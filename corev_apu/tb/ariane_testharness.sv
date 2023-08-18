@@ -134,7 +134,7 @@ module ariane_testharness #(
   // ---------------
   
   //logic [ariane_pkg::RM_NUM_LANES-1: 0][ariane_pkg::RM_NUM_RULES-1:0]           monitor_o;
-  assign monitor_o = i_ariane.i_cva6.monitor_o;
+  //assign monitor_o = i_ariane.i_cva6.monitor_o;
 
 
   // SiFive's SimJTAG Module
@@ -632,6 +632,7 @@ module ariane_testharness #(
     .irq_i                ( irqs                ),
     .ipi_i                ( ipi                 ),
     .time_irq_i           ( timer_irq           ),
+    .monitor_o            ( monitor_o           ),
 `ifdef RVFI_PORT
     .rvfi_o               ( rvfi                ),
 `endif
