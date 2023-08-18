@@ -729,6 +729,19 @@ xlnx_vio vio(
 .probe_in7(monitor_o[7])
 );
 
+
+xlnx_ila ila(
+.clk(clk_i),
+.probe0(monitor_o[0]),
+.probe1(monitor_o[1]),
+.probe2(monitor_o[2]),
+.probe3(monitor_o[3]),
+.probe4(monitor_o[4]),
+.probe5(monitor_o[5]),
+.probe6(monitor_o[6]),
+.probe7(monitor_o[7])
+);
+
 // ---------------
 // CLINT
 // ---------------
