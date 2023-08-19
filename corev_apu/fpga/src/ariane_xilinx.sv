@@ -718,7 +718,7 @@ ariane #(
 
 
 xlnx_vio vio(
-.clk(clk_i),
+.clk(clk),
 .probe_in0(monitor_o[0]),
 .probe_in1(monitor_o[1]),
 .probe_in2(monitor_o[2]),
@@ -731,7 +731,7 @@ xlnx_vio vio(
 
 
 xlnx_ila ila(
-.clk(clk_i),
+.clk(clk),
 .probe0(monitor_o[0]),
 .probe1(monitor_o[1]),
 .probe2(monitor_o[2]),
