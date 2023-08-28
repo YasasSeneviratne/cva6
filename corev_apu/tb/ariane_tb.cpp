@@ -353,12 +353,21 @@ done_processing:
   uint32_t num_lanes = top->num_lanes;
   uint32_t num_rules = top->num_rules;
 
+  //monitor output log initialization
   std::vector <std::ofstream *> loglist;
   for(int i=0; i<num_lanes; i++) {
     std::ofstream * log = new std::ofstream;
     log->open("monitor"+std::to_string(i)+".log");
     loglist.push_back(log);
   }
+
+  //lane utilizatin masurement
+  uint32_t tot_cycle_count = 0;
+  std::vector <int> lane_utilization;
+  for(int i=0; i<num_lanes; i++) {
+    lane_utilization.push_back(0);
+  }
+
 
   while (!dtm->done() && !jtag->done() && !(top->exit_o & 0x1)) {
     top->clk_i = 0;
@@ -378,6 +387,14 @@ done_processing:
         (*loglist[j])<<std::setw(8)<<std::hex<<std::setfill('0')<< top->monitor_o[i+vec_len*j];
       }
       (*loglist[j])<<std::endl;
+    }
+	
+    tot_cycle_count++;
+    uint32_t alloc_val = top->lane_allocation;
+    for(int j=0; j<num_lanes; j++) {  
+      if(alloc_val & 1)
+        lane_utilization[j]++;
+      alloc_val = alloc_val>>1;
     }
     
 #if VM_TRACE
@@ -431,6 +448,12 @@ done_processing:
               << "Wall clock time passed: "
               << std::chrono::duration<double, std::milli>(t_end-t_start).count()
               << " ms\n";
+    std::cout << "Runtime lane utilization %" << std::endl;
+              for(int j=0; j<num_lanes; j++) {
+                float a = float(lane_utilization[j])/float(tot_cycle_count);
+                std::cout <<std::setprecision(10) <<"Lane"<<j<<": "<< a*100 << std::endl;
+              }
+
   }
 
   return ret;

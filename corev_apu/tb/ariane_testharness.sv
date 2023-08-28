@@ -31,7 +31,8 @@ module ariane_testharness #(
   output logic [31:0]                    exit_o,
   output logic [ariane_pkg::RM_NUM_LANES-1: 0][ariane_pkg::RM_NUM_RULES-1:0]           monitor_o,
   output int unsigned num_lanes,
-  output int unsigned num_rules
+  output int unsigned num_rules,
+  output logic [ariane_pkg::RM_NUM_LANES-1: 0] lane_allocation
 );
 
   // pass parameters to cpp world
@@ -135,7 +136,7 @@ module ariane_testharness #(
   
   //logic [ariane_pkg::RM_NUM_LANES-1: 0][ariane_pkg::RM_NUM_RULES-1:0]           monitor_o;
   //assign monitor_o = i_ariane.i_cva6.monitor_o;
-
+  assign lane_allocation  = i_ariane.i_cva6.id_stage_i.rm_alloc.alloc_mem;
 
   // SiFive's SimJTAG Module
   // Converts to DPI calls
