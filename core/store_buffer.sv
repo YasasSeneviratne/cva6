@@ -14,11 +14,14 @@
 //              if they are no longer speculative
 
 
-module store_buffer import ariane_pkg::*; (
+module store_buffer import ariane_pkg::*; #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty
+) (
     input logic          clk_i,           // Clock
     input logic          rst_ni,          // Asynchronous reset active low
     input logic          flush_i,         // if we flush we need to pause the transactions on the memory
                                           // otherwise we will run in a deadlock with the memory arbiter
+    input  logic         stall_st_pending_i, // Stall issuing non-speculative request
     output logic         no_st_pending_o, // non-speculative queue is empty (e.g.: everything is committed to the memory hierarchy)
     output logic         store_buffer_empty_o, // there is no store pending in neither the speculative unit or the non-speculative queue
 
@@ -79,7 +82,7 @@ module store_buffer import ariane_pkg::*; (
     assign ready_o = ~spec_buf_full || commit_i;
     
     always_comb begin : core_if
-        automatic logic [DEPTH_SPEC:0] speculative_status_cnt;
+        automatic logic [$clog2(DEPTH_SPEC):0] speculative_status_cnt;
         speculative_status_cnt = speculative_status_cnt_q;
 
         spec_buf_full = 1'b1;
@@ -160,7 +163,7 @@ module store_buffer import ariane_pkg::*; (
     assign mem_paddr_o              = commit_queue_n[commit_read_pointer_n].address;
 
     always_comb begin : store_if
-        automatic logic [DEPTH_COMMIT:0] commit_status_cnt;
+        automatic logic [$clog2(DEPTH_COMMIT):0] commit_status_cnt;
         commit_status_cnt = commit_status_cnt_q;
 
         commit_ready_o = (commit_status_cnt_q < DEPTH_COMMIT);
@@ -176,7 +179,7 @@ module store_buffer import ariane_pkg::*; (
 
         // there should be no commit when we are flushing
         // if the entry in the commit queue is valid and not speculative anymore we can issue this instruction
-        if (commit_queue_q[commit_read_pointer_q].valid) begin
+        if (commit_queue_q[commit_read_pointer_q].valid && !stall_st_pending_i) begin
             req_port_o.data_req = 1'b1;
             if (req_port_i.data_gnt) begin
                 // we can evict it from the commit buffer

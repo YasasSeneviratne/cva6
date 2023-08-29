@@ -77,6 +77,27 @@ package riscv;
 
     typedef struct packed {
         logic         sd;     // signal dirty state - read-only
+        logic [62:34] wpri6;  // writes preserved reads ignored
+        xlen_e        uxl;    // variable user mode xlen - hardwired to zero
+        logic [12:0]  wpri5;  // writes preserved reads ignored
+        logic         mxr;    // make executable readable
+        logic         sum;    // permit supervisor user memory access
+        logic         wpri4;  // writes preserved reads ignored
+        xs_t          xs;     // extension register - hardwired to zero
+        xs_t          fs;     // floating point extension register
+        logic [1:0]   wpri3;  // writes preserved reads ignored
+        xs_t          vs;     // vector extension register
+        logic         spp;    // holds the previous privilege mode up to supervisor
+        logic         wpri2;  // writes preserved reads ignored
+        logic         ube;    // UBE controls whether explicit load and store memory accesses made from U-mode are little-endian (UBE=0) or big-endian (UBE=1)
+        logic         spie;   // supervisor interrupts enable bit active prior to trap
+        logic [1:0]   wpri1;  // writes preserved reads ignored
+        logic         sie;    // supervisor interrupts enable
+        logic         wpri0;  // writes preserved reads ignored
+    } sstatus_rv_t;
+    
+    typedef struct packed {
+        logic         sd;     // signal dirty state - read-only
         logic [62:36] wpri4;  // writes preserved reads ignored
         xlen_e        sxl;    // variable supervisor mode xlen - hardwired to zero
         xlen_e        uxl;    // variable user mode xlen - hardwired to zero
@@ -90,17 +111,17 @@ package riscv;
         xs_t          xs;     // extension register - hardwired to zero
         xs_t          fs;     // floating point extension register
         priv_lvl_t    mpp;    // holds the previous privilege mode up to machine
-        logic [1:0]   wpri2;  // writes preserved reads ignored
+        xs_t          vs;     // vector extension register
         logic         spp;    // holds the previous privilege mode up to supervisor
         logic         mpie;   // machine interrupts enable bit active prior to trap
-        logic         wpri1;  // writes preserved reads ignored
+        logic         ube;    // UBE controls whether explicit load and store memory accesses made from U-mode are little-endian (UBE=0) or big-endian (UBE=1)
         logic         spie;   // supervisor interrupts enable bit active prior to trap
-        logic         upie;   // user interrupts enable bit active prior to trap - hardwired to zero
+        logic         wpri2;  // writes preserved reads ignored
         logic         mie;    // machine interrupts enable
-        logic         wpri0;  // writes preserved reads ignored
+        logic         wpri1;  // writes preserved reads ignored
         logic         sie;    // supervisor interrupts enable
-        logic         uie;    // user interrupts enable - hardwired to zero
-    } status_rv_t;
+        logic         wpri0;  // writes preserved reads ignored
+    } mstatus_rv_t;
 
     typedef struct packed {
         logic [ModeW-1:0] mode;
@@ -224,7 +245,7 @@ package riscv;
     localparam OpcodeNmsub     = 7'b10_010_11;
     localparam OpcodeNmadd     = 7'b10_011_11;
     localparam OpcodeOpFp      = 7'b10_100_11;
-    localparam OpcodeRsrvd1    = 7'b10_101_11;
+    localparam OpcodeVec       = 7'b10_101_11;
     localparam OpcodeCustom2   = 7'b10_110_11;
     // Quadrant 3
     localparam OpcodeBranch    = 7'b11_000_11;
@@ -349,6 +370,14 @@ package riscv;
         CSR_FRM            = 12'h002,
         CSR_FCSR           = 12'h003,
         CSR_FTRAN          = 12'h800,
+        // Vector CSRs
+        CSR_VSTART         = 12'h008,
+        CSR_VXSAT          = 12'h009,
+        CSR_VXRM           = 12'h00A,
+        CSR_VCSR           = 12'h00F,
+        CSR_VL             = 12'hC20,
+        CSR_VTYPE          = 12'hC21,
+        CSR_VLENB          = 12'hC22,
         // Supervisor Mode CSRs
         CSR_SSTATUS        = 12'h100,
         CSR_SIE            = 12'h104,
@@ -368,6 +397,7 @@ package riscv;
         CSR_MIE            = 12'h304,
         CSR_MTVEC          = 12'h305,
         CSR_MCOUNTEREN     = 12'h306,
+        CSR_MSTATUSH       = 12'h310,
         CSR_MCOUNTINHIBIT  = 12'h320,
         CSR_MHPM_EVENT_3   = 12'h323,  //Machine performance monitoring Event Selector
         CSR_MHPM_EVENT_4   = 12'h324,  //Machine performance monitoring Event Selector
@@ -491,8 +521,10 @@ package riscv;
         CSR_MHPM_COUNTER_30H = 12'hB9E,  // reserved
         CSR_MHPM_COUNTER_31H = 12'hB9F,  // reserved
         // Cache Control (platform specifc)
-        CSR_DCACHE         = 12'h701,
-        CSR_ICACHE         = 12'h700,
+        CSR_DCACHE         = 12'h7C1,
+        CSR_ICACHE         = 12'h7C0,
+        // Accelerator memory consistency (platform specific)
+        CSR_ACC_CONS       = 12'h7C2,
         // Triggers
         CSR_TSELECT        = 12'h7A0,
         CSR_TDATA1         = 12'h7A1,

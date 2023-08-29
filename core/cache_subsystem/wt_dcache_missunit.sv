@@ -15,10 +15,10 @@
 
 
 module wt_dcache_missunit import ariane_pkg::*; import wt_cache_pkg::*; #(
+  parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter bit                         AxiCompliant  = 1'b0, // set this to 1 when using in conjunction with AXI bus adapter
   parameter logic [CACHE_ID_WIDTH-1:0]  AmoTxId       = 1,    // TX id to be used for AMOs
-  parameter int unsigned                NumPorts      = 3,    // number of miss ports
-  parameter int                         AxiDataWidth  = 0
+  parameter int unsigned                NumPorts      = 3     // number of miss ports
 ) (
   input  logic                                       clk_i,       // Clock
   input  logic                                       rst_ni,      // Asynchronous reset active low
@@ -70,6 +70,38 @@ module wt_dcache_missunit import ariane_pkg::*; import wt_cache_pkg::*; #(
   input  logic                                       mem_data_ack_i,
   output dcache_req_t                                mem_data_o
 );
+
+  // functions
+  function automatic logic [ariane_pkg::DCACHE_SET_ASSOC-1:0] dcache_way_bin2oh (
+    input logic [L1D_WAY_WIDTH-1:0] in
+  );
+    logic [ariane_pkg::DCACHE_SET_ASSOC-1:0] out;
+    out     = '0;
+    out[in] = 1'b1;
+    return out;
+  endfunction
+
+  // align the physical address to the specified size:
+  // 000: bytes
+  // 001: hword
+  // 010: word
+  // 011: dword
+  // 111: DCACHE line
+  function automatic logic [riscv::PLEN-1:0] paddrSizeAlign(
+    input logic [riscv::PLEN-1:0] paddr,
+    input logic [2:0]  size
+  );
+    logic [riscv::PLEN-1:0] out;
+    out = paddr;
+    unique case (size)
+      3'b001: out[0:0]                     = '0;
+      3'b010: out[1:0]                     = '0;
+      3'b011: out[2:0]                     = '0;
+      3'b111: out[DCACHE_OFFSET_WIDTH-1:0] = '0;
+      default: ;
+    endcase
+    return out;
+  endfunction : paddrSizeAlign
 
   // controller FSM
   typedef enum logic[2:0] {IDLE, DRAIN, AMO,  FLUSH, STORE_WAIT, LOAD_WAIT, AMO_WAIT} state_e;
@@ -224,8 +256,8 @@ module wt_dcache_missunit import ariane_pkg::*; import wt_cache_pkg::*; #(
 
   // note: openpiton returns a full cacheline!
   if (AxiCompliant) begin : gen_axi_rtrn_mux
-    if (AxiDataWidth > 64) begin
-      assign amo_rtrn_mux = mem_rtrn_i.data[amo_req_i.operand_a[$clog2(AxiDataWidth/8)-1:3]*64 +: 64];
+    if (CVA6Cfg.AxiDataWidth > 64) begin
+      assign amo_rtrn_mux = mem_rtrn_i.data[amo_req_i.operand_a[$clog2(CVA6Cfg.AxiDataWidth/8)-1:3]*64 +: 64];
     end else begin
       assign amo_rtrn_mux = mem_rtrn_i.data[0 +: 64];
     end
@@ -251,7 +283,7 @@ module wt_dcache_missunit import ariane_pkg::*; import wt_cache_pkg::*; #(
   assign mem_data_o.amo_op = (amo_sel) ? amo_req_i.amo_op    : AMO_NONE;
 
   assign tmp_paddr         = (amo_sel) ? amo_req_i.operand_a[riscv::PLEN-1:0] : miss_paddr_i[miss_port_idx];
-  assign mem_data_o.paddr  = wt_cache_pkg::paddrSizeAlign(tmp_paddr, mem_data_o.size);
+  assign mem_data_o.paddr  = paddrSizeAlign(tmp_paddr, mem_data_o.size);
 
 ///////////////////////////////////////////////////////
 // back-off mechanism for LR/SC completion guarantee

@@ -16,12 +16,14 @@
 // change request from the back-end and does branch prediction.
 
 module frontend import ariane_pkg::*; #(
+  parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
 ) (
   input  logic               clk_i,              // Clock
   input  logic               rst_ni,             // Asynchronous reset active low
   input  logic               flush_i,            // flush request for PCGEN
   input  logic               flush_bp_i,         // flush branch prediction
+  input  logic               halt_i,             // halt commit stage
   input  logic               debug_mode_i,
   // global input
   input  logic [riscv::VLEN-1:0]        boot_addr_i,
@@ -38,8 +40,8 @@ module frontend import ariane_pkg::*; #(
   input  logic               ex_valid_i,         // exception is valid - from commit
   input  logic               set_debug_pc_i,     // jump to debug address
   // Instruction Fetch
-  output icache_dreq_i_t     icache_dreq_o,
-  input  icache_dreq_o_t     icache_dreq_i,
+  output icache_dreq_t     icache_dreq_o,
+  input  icache_drsp_t     icache_dreq_i,
   // instruction output port -> to processor back-end
   output fetch_entry_t       fetch_entry_o,       // fetch entry containing all relevant data for the ID stage
   output logic               fetch_entry_valid_o, // instruction in IF is valid
@@ -68,7 +70,7 @@ module frontend import ariane_pkg::*; #(
     // shift amount
     logic [$clog2(ariane_pkg::INSTR_PER_FETCH)-1:0] shamt;
     // address will always be 16 bit aligned, make this explicit here
-    if (ariane_pkg::RVC) begin : gen_shamt
+    if (CVA6Cfg.RVC) begin : gen_shamt
       assign shamt = icache_dreq_i.vaddr[$clog2(ariane_pkg::INSTR_PER_FETCH):1];
     end else begin
       assign shamt = 1'b0;
@@ -110,7 +112,9 @@ module frontend import ariane_pkg::*; #(
 
     logic serving_unaligned;
     // Re-align instructions
-    instr_realign i_instr_realign (
+    instr_realign #(
+      .CVA6Cfg   ( CVA6Cfg   )
+    ) i_instr_realign (
       .clk_i               ( clk_i                 ),
       .rst_ni              ( rst_ni                ),
       .flush_i             ( icache_dreq_o.kill_s2 ),
@@ -122,22 +126,26 @@ module frontend import ariane_pkg::*; #(
       .addr_o              ( addr                  ),
       .instr_o             ( instr                 )
     );
+
     // --------------------
     // Branch Prediction
     // --------------------
     // select the right branch prediction result
     // in case we are serving an unaligned instruction in instr[0] we need to take
     // the prediction we saved from the previous fetch
-    assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][1]];
-    assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[addr[0][1]];
+    if (CVA6Cfg.RVC) begin : gen_btb_prediction_shifted
+      assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][$clog2(INSTR_PER_FETCH):1]];
+      assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[addr[0][$clog2(INSTR_PER_FETCH):1]];
 
-    if (ariane_pkg::RVC) begin : gen_btb_prediction_shifted
       // for all other predictions we can use the generated address to index
       // into the branch prediction data structures
       for (genvar i = 1; i < INSTR_PER_FETCH; i++) begin : gen_prediction_address
         assign bht_prediction_shifted[i] = bht_prediction[addr[i][$clog2(INSTR_PER_FETCH):1]];
         assign btb_prediction_shifted[i] = btb_prediction[addr[i][$clog2(INSTR_PER_FETCH):1]];
       end
+    end else begin
+      assign bht_prediction_shifted[0] = (serving_unaligned) ? bht_q : bht_prediction[addr[0][1]];
+      assign btb_prediction_shifted[0] = (serving_unaligned) ? btb_q : btb_prediction[addr[0][1]];
     end;
 
     // for the return address stack it doens't matter as we have the
@@ -335,12 +343,14 @@ module frontend import ariane_pkg::*; #(
       // 6. Pipeline Flush because of CSR side effects
       // On a pipeline flush start fetching from the next address
       // of the instruction in the commit stage
-      // we came here from a flush request of a CSR instruction or AMO,
-      // as CSR or AMO instructions do not exist in a compressed form
+      // we either came here from a flush request of a CSR instruction or AMO,
+      // so as CSR or AMO instructions do not exist in a compressed form
       // we can unconditionally do PC + 4 here
+      // or if the commit stage is halted, just take the current pc of the
+      // instruction in the commit stage
       // TODO(zarubaf) This adder can at least be merged with the one in the csr_regfile stage
       if (set_pc_commit_i) begin
-        npc_d = pc_commit_i + {{riscv::VLEN-3{1'b0}}, 3'b100};
+        npc_d = pc_commit_i + (halt_i ? '0 : {{riscv::VLEN-3{1'b0}}, 3'b100});
       end
       // 7. Debug
       // enter debug on a hard-coded base-address
@@ -388,8 +398,9 @@ module frontend import ariane_pkg::*; #(
 
     if (ArianeCfg.RASDepth == 0) begin
       assign ras_predict = '0;
-    end else begin
+    end else begin : ras_gen
       ras #(
+        .CVA6Cfg ( CVA6Cfg ),
         .DEPTH  ( ArianeCfg.RASDepth  )
       ) i_ras (
         .clk_i,
@@ -409,8 +420,9 @@ module frontend import ariane_pkg::*; #(
 
     if (ArianeCfg.BTBEntries == 0) begin
       assign btb_prediction = '0;
-    end else begin
+    end else begin : btb_gen
       btb #(
+        .CVA6Cfg          ( CVA6Cfg                ),
         .NR_ENTRIES       ( ArianeCfg.BTBEntries   )
       ) i_btb (
         .clk_i,
@@ -425,8 +437,9 @@ module frontend import ariane_pkg::*; #(
 
     if (ArianeCfg.BHTEntries == 0) begin
       assign bht_prediction = '0;
-    end else begin
+    end else begin : bht_gen
       bht #(
+        .CVA6Cfg          ( CVA6Cfg                ),
         .NR_ENTRIES       ( ArianeCfg.BHTEntries   )
       ) i_bht (
         .clk_i,
@@ -442,7 +455,9 @@ module frontend import ariane_pkg::*; #(
     // we need to inspect up to INSTR_PER_FETCH instructions for branches
     // and jumps
     for (genvar i = 0; i < INSTR_PER_FETCH; i++) begin : gen_instr_scan
-      instr_scan i_instr_scan (
+      instr_scan #(
+        .CVA6Cfg      ( CVA6Cfg       )
+      ) i_instr_scan (
         .instr_i      ( instr[i]      ),
         .rvi_return_o ( rvi_return[i] ),
         .rvi_call_o   ( rvi_call[i]   ),
@@ -460,7 +475,9 @@ module frontend import ariane_pkg::*; #(
       );
     end
 
-    instr_queue i_instr_queue (
+    instr_queue #(
+      .CVA6Cfg             ( CVA6Cfg              )
+    ) i_instr_queue (
       .clk_i               ( clk_i                ),
       .rst_ni              ( rst_ni               ),
       .flush_i             ( flush_i              ),

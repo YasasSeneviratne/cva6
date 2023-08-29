@@ -14,12 +14,10 @@
 
 
 module std_nbdcache import std_cache_pkg::*; import ariane_pkg::*; #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter ariane_cfg_t ArianeCfg        = ArianeDefaultConfig, // contains cacheable regions
-    parameter int unsigned AXI_ADDR_WIDTH   = 0,
-    parameter int unsigned AXI_DATA_WIDTH   = 0,
-    parameter int unsigned AXI_ID_WIDTH     = 0,
-    parameter type axi_req_t = ariane_axi::req_t,
-    parameter type axi_rsp_t = ariane_axi::resp_t
+    parameter type axi_req_t = logic,
+    parameter type axi_rsp_t = logic
 )(
     input  logic                           clk_i,       // Clock
     input  logic                           rst_ni,      // Asynchronous reset active low
@@ -93,6 +91,7 @@ import std_cache_pkg::*;
     generate
         for (genvar i = 0; i < 3; i++) begin : master_ports
             cache_ctrl  #(
+                .CVA6Cfg               ( CVA6Cfg              ),
                 .ArianeCfg             ( ArianeCfg            )
             ) i_cache_ctrl (
                 .bypass_i              ( ~enable_i            ),
@@ -132,10 +131,8 @@ import std_cache_pkg::*;
     // Miss Handling Unit
     // ------------------
     miss_handler #(
+        .CVA6Cfg                ( CVA6Cfg              ),
         .NR_PORTS               ( 3                    ),
-        .AXI_ADDR_WIDTH         ( AXI_ADDR_WIDTH       ),
-        .AXI_DATA_WIDTH         ( AXI_DATA_WIDTH       ),
-        .AXI_ID_WIDTH           ( AXI_ID_WIDTH         ),
         .axi_req_t              ( axi_req_t            ),
         .axi_rsp_t              ( axi_rsp_t            )
     ) i_miss_handler (
@@ -245,6 +242,7 @@ import std_cache_pkg::*;
     // Tag Comparison and memory arbitration
     // ------------------------------------------------
     tag_cmp #(
+        .CVA6Cfg            ( CVA6Cfg            ),
         .NR_PORTS           ( 4                  ),
         .ADDR_WIDTH         ( DCACHE_INDEX_WIDTH ),
         .DCACHE_SET_ASSOC   ( DCACHE_SET_ASSOC   )
@@ -271,7 +269,7 @@ import std_cache_pkg::*;
 
 //pragma translate_off
     initial begin
-        assert (DCACHE_LINE_WIDTH/AXI_DATA_WIDTH inside {2, 4, 8, 16}) else $fatal(1, "Cache line size needs to be a power of two multiple of AXI_DATA_WIDTH");
+        assert (DCACHE_LINE_WIDTH/CVA6Cfg.AxiDataWidth inside {2, 4, 8, 16}) else $fatal(1, "Cache line size needs to be a power of two multiple of AxiDataWidth");
     end
 //pragma translate_on
 endmodule

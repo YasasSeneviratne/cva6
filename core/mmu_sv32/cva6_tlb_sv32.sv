@@ -25,6 +25,7 @@
 // =========================================================================== //
 
 module cva6_tlb_sv32 import ariane_pkg::*; #(
+      parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
       parameter int unsigned TLB_ENTRIES = 4,
       parameter int unsigned ASID_WIDTH  = 1
   )(
@@ -74,7 +75,7 @@ module cva6_tlb_sv32 import ariane_pkg::*; #(
         for (int unsigned i = 0; i < TLB_ENTRIES; i++) begin
             // first level match, this may be a mega page, check the ASID flags as well
             // if the entry is associated to a global address, don't match the ASID (ASID is don't care)
-            if (tags_q[i].valid && ((lu_asid_i == tags_q[i].asid) || content_q[i].g)  && vpn1 == tags_q[i].vpn1) begin
+            if (tags_q[i].valid && ((lu_asid_i == tags_q[i].asid[ASID_WIDTH-1:0]) || content_q[i].g)  && vpn1 == tags_q[i].vpn1) begin
                 if (tags_q[i].is_4M || vpn0 == tags_q[i].vpn0) begin
                     lu_is_4M_o   = tags_q[i].is_4M;
                     lu_content_o = content_q[i];
@@ -109,17 +110,17 @@ module cva6_tlb_sv32 import ariane_pkg::*; #(
             if (flush_i) begin
                 // invalidate logic
                 // flush everything if ASID is 0 and vaddr is 0 ("SFENCE.VMA x0 x0" case)
-		if (asid_to_be_flushed_is0 && vaddr_to_be_flushed_is0 )
+                if (asid_to_be_flushed_is0 && vaddr_to_be_flushed_is0 )
                     tags_n[i].valid = 1'b0;
                 // flush vaddr in all addressing space ("SFENCE.VMA vaddr x0" case), it should happen only for leaf pages
                 else if (asid_to_be_flushed_is0 && ( (vaddr_vpn0_match[i] && vaddr_vpn1_match[i]) || (vaddr_vpn1_match[i] && tags_q[i].is_4M) ) && (~vaddr_to_be_flushed_is0))
                     tags_n[i].valid = 1'b0;
                 // the entry is flushed if it's not global and asid and vaddr both matches with the entry to be flushed ("SFENCE.VMA vaddr asid" case)
-	        else if ((!content_q[i].g) && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i]) || (vaddr_vpn1_match[i] && tags_q[i].is_4M)) && (asid_to_be_flushed_i == tags_q[i].asid) && (!vaddr_to_be_flushed_is0) && (!asid_to_be_flushed_is0))
-	          	tags_n[i].valid = 1'b0;
+            else if ((!content_q[i].g) && ((vaddr_vpn0_match[i] && vaddr_vpn1_match[i]) || (vaddr_vpn1_match[i] && tags_q[i].is_4M)) && (asid_to_be_flushed_i == tags_q[i].asid[ASID_WIDTH-1:0]) && (!vaddr_to_be_flushed_is0) && (!asid_to_be_flushed_is0))
+                tags_n[i].valid = 1'b0;
                 // the entry is flushed if it's not global, and the asid matches and vaddr is 0. ("SFENCE.VMA 0 asid" case)
-	        else if ((!content_q[i].g) && (vaddr_to_be_flushed_is0) && (asid_to_be_flushed_i == tags_q[i].asid) && (!asid_to_be_flushed_is0))
-	        	  tags_n[i].valid = 1'b0;
+            else if ((!content_q[i].g) && (vaddr_to_be_flushed_is0) && (asid_to_be_flushed_i == tags_q[i].asid[ASID_WIDTH-1:0]) && (!asid_to_be_flushed_is0))
+                  tags_n[i].valid = 1'b0;
             // normal replacement
             end else if (update_i.valid & replace_en[i]) begin
                 // update tag array
@@ -140,8 +141,14 @@ module cva6_tlb_sv32 import ariane_pkg::*; #(
     // PLRU - Pseudo Least Recently Used Replacement
     // -----------------------------------------------
     logic[2*(TLB_ENTRIES-1)-1:0] plru_tree_q, plru_tree_n;
+    logic en;
+    int unsigned idx_base, shift, new_index;
     always_comb begin : plru_replacement
         plru_tree_n = plru_tree_q;
+          en = '0;
+          idx_base = '0;
+          shift = '0;
+          new_index = '0;
         // The PLRU-tree indexing:
         // lvl0        0
         //            / \
@@ -166,7 +173,6 @@ module cva6_tlb_sv32 import ariane_pkg::*; #(
         // default: begin /* No hit */ end
         // endcase
         for (int unsigned i = 0; i < TLB_ENTRIES; i++) begin
-            automatic int unsigned idx_base, shift, new_index;
             // we got a hit so update the pointer as it was least recently used
             if (lu_hit[i] & lu_access_i) begin
                 // Set the nodes to the values we would expect
@@ -195,8 +201,6 @@ module cva6_tlb_sv32 import ariane_pkg::*; #(
         // the corresponding bit of the entry's index, this is
         // the next entry to replace.
         for (int unsigned i = 0; i < TLB_ENTRIES; i += 1) begin
-            automatic logic en;
-            automatic int unsigned idx_base, shift, new_index;
             en = 1'b1;
             for (int unsigned lvl = 0; lvl < $clog2(TLB_ENTRIES); lvl++) begin
                 idx_base = $unsigned((2**lvl)-1);

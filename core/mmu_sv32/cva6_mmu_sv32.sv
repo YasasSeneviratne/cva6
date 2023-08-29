@@ -27,6 +27,7 @@
 // =========================================================================== //
 
 module cva6_mmu_sv32 import ariane_pkg::*; #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter int unsigned INSTR_TLB_ENTRIES     = 2,
     parameter int unsigned DATA_TLB_ENTRIES      = 2,
     parameter int unsigned ASID_WIDTH            = 1,
@@ -38,8 +39,8 @@ module cva6_mmu_sv32 import ariane_pkg::*; #(
     input  logic                            enable_translation_i,
     input  logic                            en_ld_st_translation_i,   // enable virtual memory translation for load/stores
     // IF interface
-    input  icache_areq_o_t                  icache_areq_i,
-    output icache_areq_i_t                  icache_areq_o,
+    input  icache_arsp_t                  icache_areq_i,
+    output icache_areq_t                  icache_areq_o,
     // LSU interface
     // this is a more minimalistic interface because the actual addressing logic is handled
     // in the LSU as we distinguish load and stores, what we do here is simple address translation
@@ -111,6 +112,7 @@ module cva6_mmu_sv32 import ariane_pkg::*; #(
 
 
     cva6_tlb_sv32 #(
+        .CVA6Cfg          ( CVA6Cfg                    ),
         .TLB_ENTRIES      ( INSTR_TLB_ENTRIES          ),
         .ASID_WIDTH       ( ASID_WIDTH                 )
     ) i_itlb (
@@ -132,6 +134,7 @@ module cva6_mmu_sv32 import ariane_pkg::*; #(
     );
 
     cva6_tlb_sv32 #(
+        .CVA6Cfg         ( CVA6Cfg                     ),
         .TLB_ENTRIES     ( DATA_TLB_ENTRIES            ),
         .ASID_WIDTH      ( ASID_WIDTH                  )
     ) i_dtlb (
@@ -153,6 +156,7 @@ module cva6_mmu_sv32 import ariane_pkg::*; #(
     );
 
     cva6_shared_tlb_sv32 #(
+        .CVA6Cfg          ( CVA6Cfg  ),
         .SHARED_TLB_DEPTH ( 64 ),
         .SHARED_TLB_WAYS  ( 2 ),
         .ASID_WIDTH ( ASID_WIDTH )
@@ -193,6 +197,7 @@ module cva6_mmu_sv32 import ariane_pkg::*; #(
     );
 
     cva6_ptw_sv32  #(
+        .CVA6Cfg                ( CVA6Cfg               ),
         .ASID_WIDTH             ( ASID_WIDTH            ),
         .ArianeCfg              ( ArianeCfg             )
     ) i_ptw (

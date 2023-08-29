@@ -28,6 +28,35 @@ import "DPI-C" context function void read_section(input longint address, inout b
 
 module ariane_tb;
 
+    // cva6 configuration
+    localparam config_pkg::cva6_cfg_t CVA6Cfg = cva6_config_pkg::cva6_cfg;
+    localparam bit IsRVFI = bit'(cva6_config_pkg::CVA6ConfigRvfiTrace);
+    localparam type rvfi_instr_t = struct packed {
+        logic [config_pkg::NRET-1:0]                  valid;
+        logic [config_pkg::NRET*64-1:0]               order;
+        logic [config_pkg::NRET*config_pkg::ILEN-1:0] insn;
+        logic [config_pkg::NRET-1:0]                  trap;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      cause;
+        logic [config_pkg::NRET-1:0]                  halt;
+        logic [config_pkg::NRET-1:0]                  intr;
+        logic [config_pkg::NRET*2-1:0]                mode;
+        logic [config_pkg::NRET*2-1:0]                ixl;
+        logic [config_pkg::NRET*5-1:0]                rs1_addr;
+        logic [config_pkg::NRET*5-1:0]                rs2_addr;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      rs1_rdata;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      rs2_rdata;
+        logic [config_pkg::NRET*5-1:0]                rd_addr;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      rd_wdata;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      pc_rdata;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      pc_wdata;
+        logic [config_pkg::NRET*riscv::VLEN-1:0]      mem_addr;
+        logic [config_pkg::NRET*riscv::PLEN-1:0]      mem_paddr;
+        logic [config_pkg::NRET*(riscv::XLEN/8)-1:0]  mem_rmask;
+        logic [config_pkg::NRET*(riscv::XLEN/8)-1:0]  mem_wmask;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      mem_rdata;
+        logic [config_pkg::NRET*riscv::XLEN-1:0]      mem_wdata;
+    };
+
     static uvm_cmdline_processor uvcl = uvm_cmdline_processor::get_inst();
 
     localparam int unsigned CLOCK_PERIOD = 20ns;
@@ -47,6 +76,10 @@ module ariane_tb;
     string binary = "";
 
     ariane_testharness #(
+        .CVA6Cfg ( CVA6Cfg ),
+        .IsRVFI ( IsRVFI ),
+        .rvfi_instr_t ( rvfi_instr_t ),
+        //
         .NUM_WORDS         ( NUM_WORDS ),
         .InclSimDTM        ( 1'b1      ),
         .StallRandomOutput ( 1'b1      ),
@@ -60,6 +93,7 @@ module ariane_tb;
 
 `ifdef SPIKE_TANDEM
     spike #(
+        .CVA6Cfg ( CVA6Cfg ),
         .Size ( NUM_WORDS * 8 )
     ) i_spike (
         .clk_i,

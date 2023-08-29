@@ -16,6 +16,7 @@
 /* verilator lint_off WIDTH */
 
 module ptw import ariane_pkg::*; #(
+        parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
         parameter int ASID_WIDTH = 1,
         parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
 ) (
@@ -138,6 +139,7 @@ module ptw import ariane_pkg::*; #(
     assign bad_paddr_o = ptw_access_exception_o ? ptw_pptr_q : 'b0;
 
     pmp #(
+        .CVA6Cfg    ( CVA6Cfg                ),
         .PLEN       ( riscv::PLEN            ),
         .PMP_LEN    ( riscv::PLEN - 2        ),
         .NR_ENTRIES ( ArianeCfg.NrPMPEntries )

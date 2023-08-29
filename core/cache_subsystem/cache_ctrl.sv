@@ -19,6 +19,7 @@
 
 
 module cache_ctrl import ariane_pkg::*; import std_cache_pkg::*; #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter ariane_cfg_t ArianeCfg = ArianeDefaultConfig // contains cacheable regions
 ) (
     input  logic                                 clk_i,     // Clock

@@ -14,9 +14,9 @@
 
 
 module csr_regfile import ariane_pkg::*; #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter logic [63:0] DmBaseAddress   = 64'h0, // debug module base address
     parameter int          AsidWidth       = 1,
-    parameter int unsigned NrCommitPorts   = 2,
     parameter int unsigned NrPMPEntries    = 8,
     parameter int unsigned MHPMCounterNum  = 6
 ) (
@@ -27,8 +27,8 @@ module csr_regfile import ariane_pkg::*; #(
     output logic                  flush_o,
     output logic                  halt_csr_o,                 // halt requested
     // commit acknowledge
-    input  scoreboard_entry_t [NrCommitPorts-1:0] commit_instr_i, // the instruction we want to commit
-    input  logic [NrCommitPorts-1:0]              commit_ack_i,   // Commit acknowledged a instruction -> increase instret CSR
+    input  scoreboard_entry_t [CVA6Cfg.NrCommitPorts-1:0] commit_instr_i, // the instruction we want to commit
+    input  logic [CVA6Cfg.NrCommitPorts-1:0]              commit_ack_i,   // Commit acknowledged a instruction -> increase instret CSR
     // Core and Cluster ID
     input  logic[riscv::VLEN-1:0] boot_addr_i,                // Address from which to start booting, mtvec is set to the same address
     input  logic[riscv::XLEN-1:0] hart_id_i,                  // Hart id in a multicore environment (reflected in a CSR)
@@ -41,6 +41,7 @@ module csr_regfile import ariane_pkg::*; #(
     output logic[riscv::XLEN-1:0] csr_rdata_o,                // Read data out
     input  logic                  dirty_fp_state_i,           // Mark the FP sate as dirty
     input  logic                  csr_write_fflags_i,         // Write fflags register e.g.: we are retiring a floating point instruction
+    input  logic                  dirty_v_state_i ,           // Mark the V state as dirty
     input  logic  [riscv::VLEN-1:0]  pc_i,                    // PC of instruction accessing the CSR
     output exception_t            csr_exception_o,            // attempts to access a CSR without appropriate privilege
                                                               // level or to write  a read-only register also
@@ -50,11 +51,16 @@ module csr_regfile import ariane_pkg::*; #(
     output logic                  eret_o,                     // Return from exception, set the PC of epc_o
     output logic  [riscv::VLEN-1:0] trap_vector_base_o,       // Output base of exception vector, correct CSR is output (mtvec, stvec)
     output riscv::priv_lvl_t      priv_lvl_o,                 // Current privilege level the CPU is in
+    // FP Imprecise exceptions
+    input  logic            [4:0] acc_fflags_ex_i,            // Imprecise FP exception from the accelerator (fcsr.fflags format)
+    input  logic                  acc_fflags_ex_valid_i,      // An FP exception from the accelerator occurred
     // FPU
     output riscv::xs_t            fs_o,                       // Floating point extension status
     output logic [4:0]            fflags_o,                   // Floating-Point Accured Exceptions
     output logic [2:0]            frm_o,                      // Floating-Point Dynamic Rounding Mode
     output logic [6:0]            fprec_o,                    // Floating-Point Precision Control
+    // Vector extension
+    output riscv::xs_t            vs_o,                       // Vector extension status
     // Decoder
     output irq_ctrl_t             irq_ctrl_o,                 // interrupt management to id stage
     // MMU
@@ -79,6 +85,8 @@ module csr_regfile import ariane_pkg::*; #(
     // Caches
     output logic                  icache_en_o,                // L1 ICache Enable
     output logic                  dcache_en_o,                // L1 DCache Enable
+    // Accelerator
+    output logic                  acc_cons_en_o,              // Accelerator memory consistent mode
     // Performance Counter
     output logic [11:0]           perf_addr_o,                // read/write address to performance counter module
     output logic[riscv::XLEN-1:0] perf_data_o,                // write data to performance counter module
@@ -102,7 +110,7 @@ module csr_regfile import ariane_pkg::*; #(
     logic  dret;  // return from debug mode
     // CSR write causes us to mark the FPU state as dirty
     logic  dirty_fp_state_csr;
-    riscv::status_rv_t    mstatus_q,  mstatus_d;
+    riscv::mstatus_rv_t    mstatus_q,  mstatus_d;
     riscv::xlen_t         mstatus_extended;
     riscv::satp_t         satp_q, satp_d;
     riscv::dcsr_t         dcsr_q,     dcsr_d;
@@ -135,6 +143,7 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::xlen_t stval_q,     stval_d;
     riscv::xlen_t dcache_q,    dcache_d;
     riscv::xlen_t icache_q,    icache_d;
+    riscv::xlen_t acc_cons_q,  acc_cons_d;
 
     logic        wfi_d,       wfi_q;
 
@@ -144,6 +153,20 @@ module csr_regfile import ariane_pkg::*; #(
     riscv::pmpcfg_t [15:0]    pmpcfg_q,  pmpcfg_d;
     logic [15:0][riscv::PLEN-3:0]        pmpaddr_q,  pmpaddr_d;
     logic [MHPMCounterNum+3-1:0] mcountinhibit_d,mcountinhibit_q;
+    int index;
+
+    localparam riscv::xlen_t IsaCode = (riscv::XLEN'(CVA6Cfg.RVA) <<  0)                // A - Atomic Instructions extension
+                                     | (riscv::XLEN'(CVA6Cfg.RVC) <<  2)                // C - Compressed extension
+                                     | (riscv::XLEN'(CVA6Cfg.RVD) <<  3)                // D - Double precsision floating-point extension
+                                     | (riscv::XLEN'(CVA6Cfg.RVF) <<  5)                // F - Single precsision floating-point extension
+                                     | (riscv::XLEN'(1  ) <<  8)                        // I - RV32I/64I/128I base ISA
+                                     | (riscv::XLEN'(1  ) << 12)                        // M - Integer Multiply/Divide extension
+                                     | (riscv::XLEN'(0  ) << 13)                        // N - User level interrupts supported
+                                     | (riscv::XLEN'(1  ) << 18)                        // S - Supervisor mode implemented
+                                     | (riscv::XLEN'(1  ) << 20)                        // U - User mode implemented
+                                     | (riscv::XLEN'(CVA6Cfg.RVV) << 21)                // V - Vector extension
+                                     | (riscv::XLEN'(CVA6Cfg.NSX) << 23)                // X - Non-standard extensions present
+                                     | ((riscv::XLEN == 64 ? 2 : 1) << riscv::XLEN-2);  // MXL
 
     assign pmpcfg_o = pmpcfg_q[15:0];
     assign pmpaddr_o = pmpaddr_q;
@@ -154,17 +177,20 @@ module csr_regfile import ariane_pkg::*; #(
     // ----------------
     assign csr_addr = riscv::csr_t'(csr_addr_i);
     assign fs_o = mstatus_q.fs;
+    assign vs_o = mstatus_q.vs;
     // ----------------
     // CSR Read logic
     // ----------------
     assign mstatus_extended = riscv::IS_XLEN64 ? mstatus_q[riscv::XLEN-1:0] :
                               {mstatus_q.sd, mstatus_q.wpri3[7:0], mstatus_q[22:0]};
 
+
     always_comb begin : csr_read_process
         // a read access exception can only occur if we attempt to read a CSR which does not exist
         read_access_exception = 1'b0;
         csr_rdata = '0;
         perf_addr_o = csr_addr.address[11:0];
+        index = '0;
 
         if (csr_read) begin
             unique case (csr_addr.address)
@@ -229,7 +255,8 @@ module csr_regfile import ariane_pkg::*; #(
                 end
                 // machine mode registers
                 riscv::CSR_MSTATUS:            csr_rdata = mstatus_extended;
-                riscv::CSR_MISA:               csr_rdata = ISA_CODE;
+                riscv::CSR_MSTATUSH:           if (riscv::XLEN == 32) csr_rdata = '0; else read_access_exception = 1'b1;
+                riscv::CSR_MISA:               csr_rdata = IsaCode;
                 riscv::CSR_MEDELEG:            csr_rdata = medeleg_q;
                 riscv::CSR_MIDELEG:            csr_rdata = mideleg_q;
                 riscv::CSR_MIE:                csr_rdata = mie_q;
@@ -290,7 +317,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MHPM_COUNTER_5,
                 riscv::CSR_MHPM_COUNTER_6,
                 riscv::CSR_MHPM_COUNTER_7,
-                riscv::CSR_MHPM_COUNTER_8,    
+                riscv::CSR_MHPM_COUNTER_8,
                 riscv::CSR_MHPM_COUNTER_9,
                 riscv::CSR_MHPM_COUNTER_10,
                 riscv::CSR_MHPM_COUNTER_11,
@@ -313,7 +340,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MHPM_COUNTER_28,
                 riscv::CSR_MHPM_COUNTER_29,
                 riscv::CSR_MHPM_COUNTER_30,
-                riscv::CSR_MHPM_COUNTER_31 :     csr_rdata   = perf_data_i;   
+                riscv::CSR_MHPM_COUNTER_31 :     csr_rdata   = perf_data_i;
 
                 riscv::CSR_MHPM_COUNTER_3H,
                 riscv::CSR_MHPM_COUNTER_4H,
@@ -351,7 +378,7 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_HPM_COUNTER_5,
                 riscv::CSR_HPM_COUNTER_6,
                 riscv::CSR_HPM_COUNTER_7,
-                riscv::CSR_HPM_COUNTER_8,    
+                riscv::CSR_HPM_COUNTER_8,
                 riscv::CSR_HPM_COUNTER_9,
                 riscv::CSR_HPM_COUNTER_10,
                 riscv::CSR_HPM_COUNTER_11,
@@ -409,6 +436,14 @@ module csr_regfile import ariane_pkg::*; #(
                 // custom (non RISC-V) cache control
                 riscv::CSR_DCACHE:           csr_rdata = dcache_q;
                 riscv::CSR_ICACHE:           csr_rdata = icache_q;
+                // custom (non RISC-V) accelerator memory consistency mode
+                riscv::CSR_ACC_CONS: begin
+                    if (CVA6Cfg.EnableAccelerator) begin
+                        csr_rdata = acc_cons_q;
+                    end else begin
+                        read_access_exception = 1'b1;
+                    end
+                end
                 // PMPs
                 riscv::CSR_PMPCFG0:          csr_rdata = pmpcfg_q[riscv::XLEN/8-1:0];
                 riscv::CSR_PMPCFG1:          if (riscv::XLEN == 32) csr_rdata = pmpcfg_q[7:4]; else read_access_exception = 1'b1;
@@ -432,15 +467,15 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_PMPADDR14,
                 riscv::CSR_PMPADDR15: begin
                     // index is specified by the last byte in the address
-                    automatic int index = csr_addr.csr_decode.address[3:0];
+                    index = csr_addr.csr_decode.address[3:0];
                     // Important: we only support granularity 8 bytes (G=1)
                     // -> last bit of pmpaddr must be set 0/1 based on the mode:
                     // NA4, NAPOT: 1
                     // TOR, OFF:   0
                     if (pmpcfg_q[index].addr_mode[1] == 1'b1)
-                        csr_rdata = {10'b0, pmpaddr_q[index][riscv::PLEN-3:0]};
+                        csr_rdata = pmpaddr_q[index][riscv::PLEN-3:0];
                     else
-                        csr_rdata = {10'b0, pmpaddr_q[index][riscv::PLEN-3:1], 1'b0};
+                        csr_rdata = {pmpaddr_q[index][riscv::PLEN-3:1], 1'b0};
                 end
                 default: read_access_exception = 1'b1;
             endcase
@@ -467,7 +502,7 @@ module csr_regfile import ariane_pkg::*; #(
         instret_d = instret_q;
         if (!debug_mode_q) begin
             // increase instruction retired counter
-            for (int i = 0; i < NrCommitPorts; i++) begin
+            for (int i = 0; i < CVA6Cfg.NrCommitPorts; i++) begin
                 if (commit_ack_i[i] && !ex_i.valid && !mcountinhibit_q[2]) instret++;
             end
             instret_d = instret;
@@ -518,6 +553,7 @@ module csr_regfile import ariane_pkg::*; #(
         mtval_d                 = mtval_q;
         dcache_d                = dcache_q;
         icache_d                = icache_q;
+        acc_cons_d              = acc_cons_q;
 
         sepc_d                  = sepc_q;
         scause_d                = scause_q;
@@ -600,8 +636,12 @@ module csr_regfile import ariane_pkg::*; #(
                     mask = ariane_pkg::SMODE_STATUS_WRITE_MASK[riscv::XLEN-1:0];
                     mstatus_d = (mstatus_q & ~{{64-riscv::XLEN{1'b0}}, mask}) | {{64-riscv::XLEN{1'b0}}, (csr_wdata & mask)};
                     // hardwire to zero if floating point extension is not present
-                    if (!FP_PRESENT) begin
+                    if (!CVA6Cfg.FpPresent) begin
                         mstatus_d.fs = riscv::Off;
+                    end
+                    // hardwire to zero if vector extension is not present
+                    if (!CVA6Cfg.RVV) begin
+                        mstatus_d.vs = riscv::Off;
                     end
                     // this instruction has side-effects
                     flush_o = 1'b1;
@@ -646,14 +686,20 @@ module csr_regfile import ariane_pkg::*; #(
                 riscv::CSR_MSTATUS: begin
                     mstatus_d      = {{64-riscv::XLEN{1'b0}}, csr_wdata};
                     mstatus_d.xs   = riscv::Off;
-                    if (!FP_PRESENT) begin
+                    if (!CVA6Cfg.FpPresent) begin
                         mstatus_d.fs = riscv::Off;
                     end
-                    mstatus_d.upie = 1'b0;
-                    mstatus_d.uie  = 1'b0;
+                    if (!CVA6Cfg.RVV) begin
+                        mstatus_d.vs = riscv::Off;
+                    end
+                    mstatus_d.wpri3 = 8'b0;
+                    mstatus_d.wpri1 = 1'b0;
+                    mstatus_d.wpri2 = 1'b0;
+                    mstatus_d.wpri0  = 1'b0;
                     // this register has side-effects on other registers, flush the pipeline
                     flush_o        = 1'b1;
                 end
+                riscv::CSR_MSTATUSH: if (riscv::XLEN != 32) update_access_exception = 1'b1;
                 // MISA is WARL (Write Any Value, Reads Legal Value)
                 riscv::CSR_MISA:;
                 // machine exception delegation register
@@ -794,6 +840,13 @@ module csr_regfile import ariane_pkg::*; #(
 
                 riscv::CSR_DCACHE:             dcache_d    = {{riscv::XLEN-1{1'b0}}, csr_wdata[0]}; // enable bit
                 riscv::CSR_ICACHE:             icache_d    = {{riscv::XLEN-1{1'b0}}, csr_wdata[0]}; // enable bit
+                riscv::CSR_ACC_CONS: begin
+                    if (CVA6Cfg.EnableAccelerator) begin
+                        acc_cons_d  = {{riscv::XLEN-1{1'b0}}, csr_wdata[0]}; // enable bit
+                    end else begin
+                        update_access_exception = 1'b1;
+                    end
+                end
                 // PMP locked logic
                 // 1. refuse to update any locked entry
                 // 2. also refuse to update the entry below a locked TOR entry
@@ -833,7 +886,7 @@ module csr_regfile import ariane_pkg::*; #(
                     // index is specified by the last byte in the address
                     automatic int index = csr_addr.csr_decode.address[3:0];
                     // check if the entry or the entry above is locked
-                    if (!pmpcfg_q[index].locked && !(pmpcfg_q[index].locked && pmpcfg_q[index].addr_mode == riscv::TOR)) begin
+                    if (!pmpcfg_q[index].locked && !(pmpcfg_q[index+1].locked && pmpcfg_q[index].addr_mode == riscv::TOR)) begin
                         pmpaddr_d[index] = csr_wdata[riscv::PLEN-3:0];
                     end
                 end
@@ -845,8 +898,12 @@ module csr_regfile import ariane_pkg::*; #(
         mstatus_d.uxl  = riscv::XLEN_64;
 
         // mark the floating point extension register as dirty
-        if (FP_PRESENT && (dirty_fp_state_csr || dirty_fp_state_i)) begin
+        if (CVA6Cfg.FpPresent && (dirty_fp_state_csr || dirty_fp_state_i)) begin
             mstatus_d.fs = riscv::Dirty;
+        end
+        // mark the vector extension register as dirty
+        if (CVA6Cfg.RVV && dirty_v_state_i) begin
+            mstatus_d.vs = riscv::Dirty;
         end
         // hardwired extension registers
         mstatus_d.sd   = (mstatus_q.xs == riscv::Dirty) | (mstatus_q.fs == riscv::Dirty);
@@ -855,6 +912,17 @@ module csr_regfile import ariane_pkg::*; #(
         if (csr_write_fflags_i) begin
             fcsr_d.fflags = csr_wdata_i[4:0] | fcsr_q.fflags;
         end
+
+        // ----------------------------
+        // Accelerator FP imprecise exceptions
+        // ----------------------------
+
+        // Update fflags as soon as a FP exception occurs in the accelerator
+        // The exception is imprecise, and the fcsr.fflags update always happens immediately
+        if (CVA6Cfg.EnableAccelerator) begin
+            fcsr_d.fflags |= acc_fflags_ex_valid_i ? acc_fflags_ex_i : 5'b0;
+        end
+
         // ---------------------
         // External Interrupts
         // ---------------------
@@ -1269,6 +1337,7 @@ module csr_regfile import ariane_pkg::*; #(
     assign icache_en_o      = icache_q[0] & (~debug_mode_q);
 `endif
     assign dcache_en_o      = dcache_q[0];
+    assign acc_cons_en_o    = CVA6Cfg.EnableAccelerator ? acc_cons_q[0] : 1'b0;
 
     // determine if mprv needs to be considered if in debug mode
     assign mprv             = (debug_mode_q && !dcsr_q.mprven) ? 1'b0 : mstatus_q.mprv;
@@ -1307,6 +1376,7 @@ module csr_regfile import ariane_pkg::*; #(
             dcache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             icache_q               <= {{riscv::XLEN-1{1'b0}}, 1'b1};
             mcountinhibit_q        <= '0;
+            acc_cons_q             <= {{riscv::XLEN-1{1'b0}}, CVA6Cfg.EnableAccelerator};
             // supervisor mode registers
             sepc_q                 <= {riscv::XLEN{1'b0}};
             scause_q               <= {riscv::XLEN{1'b0}};
@@ -1351,6 +1421,7 @@ module csr_regfile import ariane_pkg::*; #(
             dcache_q               <= dcache_d;
             icache_q               <= icache_d;
             mcountinhibit_q        <= mcountinhibit_d;
+            acc_cons_q             <= acc_cons_d;
             // supervisor mode registers
             sepc_q                 <= sepc_d;
             scause_q               <= scause_d;

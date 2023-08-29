@@ -16,6 +16,34 @@
 `include "axi/assign.svh"
 
 module ariane_testharness #(
+  parameter config_pkg::cva6_cfg_t CVA6Cfg = cva6_config_pkg::cva6_cfg,
+  parameter bit IsRVFI = bit'(cva6_config_pkg::CVA6ConfigRvfiTrace),
+  parameter type rvfi_instr_t = struct packed {
+    logic [config_pkg::NRET-1:0]                  valid;
+    logic [config_pkg::NRET*64-1:0]               order;
+    logic [config_pkg::NRET*config_pkg::ILEN-1:0] insn;
+    logic [config_pkg::NRET-1:0]                  trap;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      cause;
+    logic [config_pkg::NRET-1:0]                  halt;
+    logic [config_pkg::NRET-1:0]                  intr;
+    logic [config_pkg::NRET*2-1:0]                mode;
+    logic [config_pkg::NRET*2-1:0]                ixl;
+    logic [config_pkg::NRET*5-1:0]                rs1_addr;
+    logic [config_pkg::NRET*5-1:0]                rs2_addr;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      rs1_rdata;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      rs2_rdata;
+    logic [config_pkg::NRET*5-1:0]                rd_addr;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      rd_wdata;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      pc_rdata;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      pc_wdata;
+    logic [config_pkg::NRET*riscv::VLEN-1:0]      mem_addr;
+    logic [config_pkg::NRET*riscv::PLEN-1:0]      mem_paddr;
+    logic [config_pkg::NRET*(riscv::XLEN/8)-1:0]  mem_rmask;
+    logic [config_pkg::NRET*(riscv::XLEN/8)-1:0]  mem_wmask;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      mem_rdata;
+    logic [config_pkg::NRET*riscv::XLEN-1:0]      mem_wdata;
+  },
+  //
   parameter int unsigned AXI_USER_WIDTH    = ariane_pkg::AXI_USER_WIDTH,
   parameter int unsigned AXI_USER_EN       = ariane_pkg::AXI_USER_EN,
   parameter int unsigned AXI_ADDRESS_WIDTH = 64,
@@ -301,17 +329,15 @@ module ariane_testharness #(
   `AXI_ASSIGN_TO_RESP(dm_axi_m_resp, slave[1])
 
   axi_adapter #(
+    .CVA6Cfg               ( CVA6Cfg                   ),
     .DATA_WIDTH            ( AXI_DATA_WIDTH            ),
-    .AXI_ADDR_WIDTH        ( ariane_axi_soc::AddrWidth ),
-    .AXI_DATA_WIDTH        ( ariane_axi_soc::DataWidth ),
-    .AXI_ID_WIDTH          ( ariane_soc::IdWidth       ),
     .axi_req_t             ( ariane_axi::req_t         ),
     .axi_rsp_t             ( ariane_axi::resp_t        )
   ) i_dm_axi_master (
     .clk_i                 ( clk_i                     ),
     .rst_ni                ( rst_ni                    ),
     .req_i                 ( dm_master_req             ),
-    .type_i                ( ariane_axi::SINGLE_REQ    ),
+    .type_i                ( ariane_pkg::SINGLE_REQ    ),
     .amo_i                 ( ariane_pkg::AMO_NONE      ),
     .gnt_o                 ( dm_master_gnt             ),
     .addr_i                ( dm_master_add             ),
@@ -621,10 +647,15 @@ module ariane_testharness #(
   // ---------------
   ariane_axi::req_t    axi_ariane_req;
   ariane_axi::resp_t   axi_ariane_resp;
-  ariane_pkg::rvfi_port_t  rvfi;
+  rvfi_instr_t [CVA6Cfg.NrCommitPorts-1:0] rvfi;
 
   ariane #(
-    .ArianeCfg  ( ariane_soc::ArianeSocCfg )
+    .CVA6Cfg              ( CVA6Cfg             ),
+    .IsRVFI               ( IsRVFI              ),
+    .rvfi_instr_t         ( rvfi_instr_t        ),
+    .ArianeCfg            ( ariane_soc::ArianeSocCfg ),
+    .noc_req_t            ( ariane_axi::req_t   ),
+    .noc_resp_t           ( ariane_axi::resp_t  )
   ) i_ariane (
     .clk_i                ( clk_i               ),
     .rst_ni               ( ndmreset_n          ),
@@ -633,18 +664,16 @@ module ariane_testharness #(
     .irq_i                ( irqs                ),
     .ipi_i                ( ipi                 ),
     .time_irq_i           ( timer_irq           ),
-    .monitor_o            ( monitor_o           ),
-`ifdef RVFI_PORT
     .rvfi_o               ( rvfi                ),
-`endif
 // Disable Debug when simulating with Spike
 `ifdef SPIKE_TANDEM
     .debug_req_i          ( 1'b0                ),
 `else
     .debug_req_i          ( debug_req_core      ),
 `endif
-    .axi_req_o            ( axi_ariane_req      ),
-    .axi_resp_i           ( axi_ariane_resp     )
+    .noc_req_o            ( axi_ariane_req      ),
+    .noc_resp_i           ( axi_ariane_resp     ),
+    .monitor_o            ( monitor_o           )
   );
 
   `AXI_ASSIGN_FROM_REQ(slave[0], axi_ariane_req)
@@ -668,6 +697,9 @@ module ariane_testharness #(
   end
 
   rvfi_tracer  #(
+    .CVA6Cfg(CVA6Cfg),
+    .rvfi_instr_t(rvfi_instr_t),
+    //
     .HART_ID(hart_id),
     .DEBUG_START(0),
     .DEBUG_STOP(0)

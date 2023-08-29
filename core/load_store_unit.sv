@@ -14,12 +14,14 @@
 
 
 module load_store_unit import ariane_pkg::*; #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter int unsigned ASID_WIDTH = 1,
     parameter ariane_pkg::ariane_cfg_t ArianeCfg = ariane_pkg::ArianeDefaultConfig
 )(
     input  logic                     clk_i,
     input  logic                     rst_ni,
     input  logic                     flush_i,
+    input  logic                     stall_st_pending_i,
     output logic                     no_st_pending_o,
     input  logic                     amo_valid_commit_i,
 
@@ -46,8 +48,8 @@ module load_store_unit import ariane_pkg::*; #(
     input  logic                     en_ld_st_translation_i,   // enable virtual memory translation for load/stores
 
     // icache translation requests
-    input  icache_areq_o_t           icache_areq_i,
-    output icache_areq_i_t           icache_areq_o,
+    input  icache_arsp_t           icache_areq_i,
+    output icache_areq_t           icache_areq_o,
 
     input  riscv::priv_lvl_t         priv_lvl_i,               // From CSR register file
     input  riscv::priv_lvl_t         ld_st_priv_lvl_i,         // From CSR register file
@@ -150,6 +152,7 @@ module load_store_unit import ariane_pkg::*; #(
     // -------------------
     if (MMU_PRESENT && (riscv::XLEN == 64)) begin : gen_mmu_sv39
         mmu #(
+            .CVA6Cfg                ( CVA6Cfg                ),
             .INSTR_TLB_ENTRIES      ( ariane_pkg::INSTR_TLB_ENTRIES ),
             .DATA_TLB_ENTRIES       ( ariane_pkg::DATA_TLB_ENTRIES ),
             .ASID_WIDTH             ( ASID_WIDTH             ),
@@ -179,6 +182,7 @@ module load_store_unit import ariane_pkg::*; #(
         );
     end else if (MMU_PRESENT && (riscv::XLEN == 32)) begin : gen_mmu_sv32
         cva6_mmu_sv32 #(
+            .CVA6Cfg                ( CVA6Cfg                ),
             .INSTR_TLB_ENTRIES      ( ariane_pkg::INSTR_TLB_ENTRIES ),
             .DATA_TLB_ENTRIES       ( ariane_pkg::DATA_TLB_ENTRIES ),
             .ASID_WIDTH             ( ASID_WIDTH             ),
@@ -253,10 +257,13 @@ module load_store_unit import ariane_pkg::*; #(
     // ------------------
     // Store Unit
     // ------------------
-    store_unit i_store_unit (
+    store_unit #(
+        .CVA6Cfg    ( CVA6Cfg    )
+    ) i_store_unit (
         .clk_i,
         .rst_ni,
         .flush_i,
+        .stall_st_pending_i,
         .no_st_pending_o,
         .store_buffer_empty_o  ( store_buffer_empty   ),
 
@@ -293,6 +300,7 @@ module load_store_unit import ariane_pkg::*; #(
     // Load Unit
     // ------------------
     load_unit #(
+        .CVA6Cfg   ( CVA6Cfg   ),
         .ArianeCfg ( ArianeCfg )
     ) i_load_unit (
         .valid_i               ( ld_valid_i           ),
@@ -485,7 +493,9 @@ module load_store_unit import ariane_pkg::*; #(
     assign lsu_req_i = {lsu_valid_i, vaddr_i, overflow, fu_data_i.operand_b, be_i, fu_data_i.fu, fu_data_i.operation, fu_data_i.trans_id,
 			pc_i, rm_i};  // for RM
 
-    lsu_bypass lsu_bypass_i (
+    lsu_bypass #(
+        .CVA6Cfg    ( CVA6Cfg    )
+    ) lsu_bypass_i (
         .lsu_req_i          ( lsu_req_i   ),
         .lsu_req_valid_i    ( lsu_valid_i ),
         .pop_ld_i           ( pop_ld      ),

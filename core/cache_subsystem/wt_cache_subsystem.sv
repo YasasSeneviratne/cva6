@@ -20,13 +20,11 @@
 
 
 module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
+  parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter ariane_pkg::ariane_cfg_t ArianeCfg       = ariane_pkg::ArianeDefaultConfig,  // contains cacheable regions
   parameter int unsigned NumPorts     = 3,
-  parameter int unsigned AxiAddrWidth = 0,
-  parameter int unsigned AxiDataWidth = 0,
-  parameter int unsigned AxiIdWidth   = 0,
-  parameter type axi_req_t = ariane_axi::req_t,
-  parameter type axi_rsp_t = ariane_axi::resp_t
+  parameter type noc_req_t = logic,
+  parameter type noc_resp_t = logic
 ) (
   input logic                            clk_i,
   input logic                            rst_ni,
@@ -35,11 +33,11 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
   input  logic                           icache_flush_i,         // flush the icache, flush and kill have to be asserted together
   output logic                           icache_miss_o,          // to performance counter
   // address translation requests
-  input  icache_areq_i_t                 icache_areq_i,          // to/from frontend
-  output icache_areq_o_t                 icache_areq_o,
+  input  icache_areq_t                 icache_areq_i,          // to/from frontend
+  output icache_arsp_t                 icache_areq_o,
   // data requests
-  input  icache_dreq_i_t                 icache_dreq_i,          // to/from frontend
-  output icache_dreq_o_t                 icache_dreq_o,
+  input  icache_dreq_t                 icache_dreq_i,          // to/from frontend
+  output icache_drsp_t                 icache_dreq_o,
   // D$
   // Cache management
   input  logic                           dcache_enable_i,        // from CSR
@@ -57,15 +55,13 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
   // writebuffer status
   output logic                           wbuffer_empty_o,
   output logic                           wbuffer_not_ni_o,
-`ifdef PITON_ARIANE
-  // L15 (memory side)
-  output l15_req_t                       l15_req_o,
-  input  l15_rtrn_t                      l15_rtrn_i
-`else
   // memory side
-  output axi_req_t                       axi_req_o,
-  input  axi_rsp_t                       axi_resp_i
-`endif
+  output noc_req_t                       noc_req_o,
+  input  noc_resp_t                      noc_resp_i,
+  // Invalidations
+  input  logic [63:0]                    inval_addr_i,
+  input  logic                           inval_valid_i,
+  output logic                           inval_ready_o
   // TODO: interrupt interface
 );
 
@@ -80,6 +76,7 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
 
   cva6_icache #(
     // use ID 0 for icache reads
+    .CVA6Cfg            ( CVA6Cfg       ),
     .RdTxId             ( 0             ),
     .ArianeCfg          ( ArianeCfg     )
   ) i_cva6_icache (
@@ -105,7 +102,7 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
   // they have equal prio and are RR arbited
   // Port 2 is write only and goes into the merging write buffer
   wt_dcache #(
-    .AxiDataWidth    ( AxiDataWidth  ),
+    .CVA6Cfg         ( CVA6Cfg       ),
     // use ID 1 for dcache reads and amos. note that the writebuffer
     // uses all IDs up to DCACHE_MAX_TX-1 for write transactions.
     .RdAmoTxId       ( 1             ),
@@ -139,6 +136,7 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
 
 `ifdef PITON_ARIANE
   wt_l15_adapter #(
+    .CVA6Cfg         ( CVA6Cfg                 ),
     .SwapEndianess   ( ArianeCfg.SwapEndianess )
   ) i_adapter (
     .clk_i              ( clk_i                   ),
@@ -153,16 +151,14 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
     .dcache_data_i      ( dcache_adapter          ),
     .dcache_rtrn_vld_o  ( adapter_dcache_rtrn_vld ),
     .dcache_rtrn_o      ( adapter_dcache          ),
-    .l15_req_o          ( l15_req_o               ),
-    .l15_rtrn_i         ( l15_rtrn_i              )
+    .l15_req_o          ( noc_req_o               ),
+    .l15_rtrn_i         ( noc_resp_i              )
   );
 `else
   wt_axi_adapter #(
-    .AxiAddrWidth       ( AxiAddrWidth ),
-    .AxiDataWidth       ( AxiDataWidth ),
-    .AxiIdWidth         ( AxiIdWidth ),
-    .axi_req_t          ( axi_req_t ),
-    .axi_rsp_t          ( axi_rsp_t )
+    .CVA6Cfg            ( CVA6Cfg  ),
+    .axi_req_t          ( noc_req_t ),
+    .axi_rsp_t          ( noc_resp_t )
   ) i_adapter (
     .clk_i              ( clk_i                   ),
     .rst_ni             ( rst_ni                  ),
@@ -176,8 +172,11 @@ module wt_cache_subsystem import ariane_pkg::*; import wt_cache_pkg::*; #(
     .dcache_data_i      ( dcache_adapter          ),
     .dcache_rtrn_vld_o  ( adapter_dcache_rtrn_vld ),
     .dcache_rtrn_o      ( adapter_dcache          ),
-    .axi_req_o          ( axi_req_o               ),
-    .axi_resp_i         ( axi_resp_i              )
+    .axi_req_o          ( noc_req_o               ),
+    .axi_resp_i         ( noc_resp_i              ),
+    .inval_addr_i       ( inval_addr_i            ),
+    .inval_valid_i      ( inval_valid_i           ),
+    .inval_ready_o      ( inval_ready_o           )
   );
 `endif
 

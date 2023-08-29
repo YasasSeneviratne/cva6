@@ -19,6 +19,7 @@
 // branch history table - 2 bit saturation counter
 
 module bht #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter int unsigned NR_ENTRIES = 1024
 )(
     input  logic                        clk_i,
@@ -31,12 +32,12 @@ module bht #(
     output ariane_pkg::bht_prediction_t [ariane_pkg::INSTR_PER_FETCH-1:0] bht_prediction_o
 );
     // the last bit is always zero, we don't need it for indexing
-    localparam OFFSET = ariane_pkg::RVC == 1'b1 ? 1 : 2;
+    localparam OFFSET = CVA6Cfg.RVC == 1'b1 ? 1 : 2;
     // re-shape the branch history table
     localparam NR_ROWS = NR_ENTRIES / ariane_pkg::INSTR_PER_FETCH;
     // number of bits needed to index the row
     localparam ROW_ADDR_BITS = $clog2(ariane_pkg::INSTR_PER_FETCH);
-    localparam ROW_INDEX_BITS = ariane_pkg::RVC == 1'b1 ? $clog2(ariane_pkg::INSTR_PER_FETCH) : 1;
+    localparam ROW_INDEX_BITS = CVA6Cfg.RVC == 1'b1 ? $clog2(ariane_pkg::INSTR_PER_FETCH) : 1;
     // number of bits we should use for prediction
     localparam PREDICTION_BITS = $clog2(NR_ROWS) + OFFSET + ROW_ADDR_BITS;
     // we are not interested in all bits of the address
@@ -52,7 +53,7 @@ module bht #(
 
     assign index     = vpc_i[PREDICTION_BITS - 1:ROW_ADDR_BITS + OFFSET];
     assign update_pc = bht_update_i.pc[PREDICTION_BITS - 1:ROW_ADDR_BITS + OFFSET];
-    if (ariane_pkg::RVC) begin : gen_update_row_index
+    if (CVA6Cfg.RVC) begin : gen_update_row_index
       assign update_row_index = bht_update_i.pc[ROW_ADDR_BITS + OFFSET - 1:OFFSET];
     end else begin
       assign update_row_index = '0;
@@ -116,7 +117,7 @@ module bht #(
 
     end else begin : gen_fpga_bht //FPGA TARGETS
 
-      // number of bits par word in the bram 
+      // number of bits par word in the bram
       localparam BRAM_WORD_BITS = $bits(ariane_pkg::bht_t);
       logic [ROW_INDEX_BITS-1:0]                                 row_index;
       logic [ariane_pkg::INSTR_PER_FETCH-1:0]                    bht_ram_we;
@@ -130,7 +131,7 @@ module bht #(
       ariane_pkg::bht_t [ariane_pkg::INSTR_PER_FETCH-1:0]        bht;
       ariane_pkg::bht_t [ariane_pkg::INSTR_PER_FETCH-1:0]        bht_updated;
 
-      if (ariane_pkg::RVC) begin : gen_row_index
+      if (CVA6Cfg.RVC) begin : gen_row_index
         assign row_index        = vpc_i[ROW_ADDR_BITS + OFFSET - 1:OFFSET];
       end else begin
         assign row_index = '0;
@@ -161,7 +162,7 @@ module bht #(
             if (update_row_index == i) begin
               bht_ram_read_address_1[i*$clog2(NR_ROWS) +: $clog2(NR_ROWS)] = update_pc;
               bht[i].saturation_counter = bht_ram_rdata_1[i*BRAM_WORD_BITS +: 2];
-            
+
               if (bht[i].saturation_counter == 2'b11) begin
                 // we can safely decrease it
                 if (!bht_update_i.taken)
@@ -181,13 +182,13 @@ module bht #(
                 else
                   bht_updated[i].saturation_counter = bht[i].saturation_counter - 1;
               end
-            
+
               bht_updated[i].valid = 1'b1;
               bht_ram_we[i] = 1'b1;
               bht_ram_write_address[i*$clog2(NR_ROWS) +: $clog2(NR_ROWS)] = update_pc;
               //bht_ram_wdata[(i+1)*BRAM_WORD_BITS-1] =  1'b1; //valid
-              bht_ram_wdata[i*BRAM_WORD_BITS +: BRAM_WORD_BITS] =  {bht_updated[i].valid , bht_updated[i].saturation_counter}; 
-            
+              bht_ram_wdata[i*BRAM_WORD_BITS +: BRAM_WORD_BITS] =  {bht_updated[i].valid , bht_updated[i].saturation_counter};
+
             end
           end
         end
@@ -199,7 +200,7 @@ module bht #(
           .DATA_DEPTH (NR_ROWS),
           .DATA_WIDTH(BRAM_WORD_BITS)
         ) i_bht_ram (
-          .Clk_CI       ( clk_i                                                        ),  
+          .Clk_CI       ( clk_i                                                        ),
           .WrEn_SI      ( bht_ram_we[i]                                                ),
           .WrAddr_DI    ( bht_ram_write_address[i*$clog2(NR_ROWS) +: $clog2(NR_ROWS)]  ),
           .WrData_DI    ( bht_ram_wdata[i*BRAM_WORD_BITS +: BRAM_WORD_BITS]            ),

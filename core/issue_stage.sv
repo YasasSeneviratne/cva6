@@ -15,9 +15,9 @@
 
 
 module issue_stage import ariane_pkg::*; #(
-    parameter int unsigned NR_ENTRIES = 8,
-    parameter int unsigned NR_WB_PORTS = 4,
-    parameter int unsigned NR_COMMIT_PORTS = 2
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
+    parameter bit IsRVFI = bit'(0),
+    parameter int unsigned NR_ENTRIES = 8
 )(
     input  logic                                     clk_i,     // Clock
     input  logic                                     rst_ni,    // Asynchronous reset active low
@@ -25,6 +25,7 @@ module issue_stage import ariane_pkg::*; #(
     output logic                                     sb_full_o,
     input  logic                                     flush_unissued_instr_i,
     input  logic                                     flush_i,
+    input  logic                                     stall_i,   // Stall issue stage
     // from ISSUE
     input  scoreboard_entry_t                        decoded_instr_i,
     input  logic                                     decoded_instr_valid_i,
@@ -63,22 +64,26 @@ module issue_stage import ariane_pkg::*; #(
     input  logic                                     x_issue_ready_i,
     output logic [31:0]                              x_off_instr_o,
 
+    // to accelerator dispatcher
+    output scoreboard_entry_t                        issue_instr_o,
+    output logic                                     issue_instr_hs_o,
+
     // write back port
-    input logic [NR_WB_PORTS-1:0][TRANS_ID_BITS-1:0] trans_id_i,
-    input bp_resolve_t                               resolved_branch_i,
-    input logic [NR_WB_PORTS-1:0][riscv::XLEN-1:0]   wbdata_i,
-    input exception_t [NR_WB_PORTS-1:0]              ex_ex_i, // exception from execute stage or CVXIF offloaded instruction
-    input logic [NR_WB_PORTS-1:0]                    wt_valid_i,
-    input logic                                      x_we_i,
+    input logic [CVA6Cfg.NrWbPorts-1:0][TRANS_ID_BITS-1:0] trans_id_i,
+    input bp_resolve_t                                     resolved_branch_i,
+    input logic [CVA6Cfg.NrWbPorts-1:0][riscv::XLEN-1:0]   wbdata_i,
+    input exception_t [CVA6Cfg.NrWbPorts-1:0]              ex_ex_i, // exception from execute stage or CVXIF offloaded instruction
+    input logic [CVA6Cfg.NrWbPorts-1:0]                    wt_valid_i,
+    input logic                                            x_we_i,
 
     // commit port
-    input  logic [NR_COMMIT_PORTS-1:0][4:0]          waddr_i,
-    input  logic [NR_COMMIT_PORTS-1:0][riscv::XLEN-1:0] wdata_i,
-    input  logic [NR_COMMIT_PORTS-1:0]               we_gpr_i,
-    input  logic [NR_COMMIT_PORTS-1:0]               we_fpr_i,
+    input  logic [CVA6Cfg.NrCommitPorts-1:0][4:0]          waddr_i,
+    input  logic [CVA6Cfg.NrCommitPorts-1:0][riscv::XLEN-1:0] wdata_i,
+    input  logic [CVA6Cfg.NrCommitPorts-1:0]               we_gpr_i,
+    input  logic [CVA6Cfg.NrCommitPorts-1:0]               we_fpr_i,
 
-    output scoreboard_entry_t [NR_COMMIT_PORTS-1:0]  commit_instr_o,
-    input  logic              [NR_COMMIT_PORTS-1:0]  commit_ack_i,
+    output scoreboard_entry_t [CVA6Cfg.NrCommitPorts-1:0]  commit_instr_o,
+    input  logic              [CVA6Cfg.NrCommitPorts-1:0]  commit_ack_i,
 
     output logic                                     stall_issue_o, // Used in Performance Counters
 
@@ -91,6 +96,8 @@ module issue_stage import ariane_pkg::*; #(
     // ---------------------------------------------------
     // Scoreboard (SB) <-> Issue and Read Operands (IRO)
     // ---------------------------------------------------
+    typedef logic [(CVA6Cfg.NrRgprPorts == 3 ? riscv::XLEN : CVA6Cfg.FLen)-1:0] rs3_len_t;
+
     fu_t  [2**REG_ADDR_SIZE-1:0] rd_clobber_gpr_sb_iro;
     fu_t  [2**REG_ADDR_SIZE-1:0] rd_clobber_fpr_sb_iro;
 
@@ -120,10 +127,15 @@ module issue_stage import ariane_pkg::*; #(
     assign rs1_forwarding_o = rs1_forwarding_xlen[riscv::VLEN-1:0];
     assign rs2_forwarding_o = rs2_forwarding_xlen[riscv::VLEN-1:0];
 
+    assign issue_instr_o    = issue_instr_sb_iro;
+    assign issue_instr_hs_o = issue_instr_valid_sb_iro & issue_ack_iro_sb;
+
     // ---------------------------------------------------------
     // 1. Re-name
     // ---------------------------------------------------------
-    re_name i_re_name (
+    re_name #(
+        .CVA6Cfg    ( CVA6Cfg    )
+    ) i_re_name (
         .clk_i                  ( clk_i                        ),
         .rst_ni                 ( rst_ni                       ),
         .flush_i                ( flush_i                      ),
@@ -140,9 +152,10 @@ module issue_stage import ariane_pkg::*; #(
     // 2. Manage instructions in a scoreboard
     // ---------------------------------------------------------
     scoreboard #(
-        .NR_ENTRIES (NR_ENTRIES ),
-        .NR_WB_PORTS(NR_WB_PORTS),
-        .NR_COMMIT_PORTS(NR_COMMIT_PORTS)
+        .CVA6Cfg    ( CVA6Cfg   ),
+        .IsRVFI     ( IsRVFI    ),
+        .rs3_len_t  ( rs3_len_t ),
+        .NR_ENTRIES (NR_ENTRIES )
     ) i_scoreboard (
         .sb_full_o             ( sb_full_o                                 ),
         .unresolved_branch_i   ( 1'b0                                      ),
@@ -182,7 +195,8 @@ module issue_stage import ariane_pkg::*; #(
     // 3. Issue instruction and read operand, also commit
     // ---------------------------------------------------------
     issue_read_operands #(
-      .NR_COMMIT_PORTS ( NR_COMMIT_PORTS )
+        .CVA6Cfg         ( CVA6Cfg         ),
+        .rs3_len_t       ( rs3_len_t       )
     )i_issue_read_operands  (
         .flush_i             ( flush_unissued_instr_i          ),
         .issue_instr_i       ( issue_instr_sb_iro              ),

@@ -17,41 +17,39 @@
 //import std_cache_pkg::*;
 
 module axi_adapter #(
+  parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
   parameter int unsigned DATA_WIDTH            = 256,
   parameter logic        CRITICAL_WORD_FIRST   = 0, // the AXI subsystem needs to support wrapping reads for this feature
   parameter int unsigned CACHELINE_BYTE_OFFSET = 8,
-  parameter int unsigned AXI_ADDR_WIDTH        = 0,
-  parameter int unsigned AXI_DATA_WIDTH        = 0,
-  parameter int unsigned AXI_ID_WIDTH          = 0,
-  parameter type axi_req_t = ariane_axi::req_t,
-  parameter type axi_rsp_t = ariane_axi::resp_t
+  parameter type axi_req_t = logic,
+  parameter type axi_rsp_t = logic
 )(
   input  logic                             clk_i,  // Clock
   input  logic                             rst_ni, // Asynchronous reset active low
 
   input  logic                             req_i,
-  input  ariane_axi::ad_req_t              type_i,
+  input  ariane_pkg::ad_req_t              type_i,
   input  ariane_pkg::amo_t                 amo_i,
   output logic                             gnt_o,
   input  logic [riscv::XLEN-1:0]           addr_i,
   input  logic                             we_i,
-  input  logic [(DATA_WIDTH/AXI_DATA_WIDTH)-1:0][AXI_DATA_WIDTH-1:0]      wdata_i,
-  input  logic [(DATA_WIDTH/AXI_DATA_WIDTH)-1:0][(AXI_DATA_WIDTH/8)-1:0]  be_i,
+  input  logic [(DATA_WIDTH/CVA6Cfg.AxiDataWidth)-1:0][CVA6Cfg.AxiDataWidth-1:0]      wdata_i,
+  input  logic [(DATA_WIDTH/CVA6Cfg.AxiDataWidth)-1:0][(CVA6Cfg.AxiDataWidth/8)-1:0]  be_i,
   input  logic [1:0]                       size_i,
-  input  logic [AXI_ID_WIDTH-1:0]          id_i,
+  input  logic [CVA6Cfg.AxiIdWidth-1:0]    id_i,
   // read port
   output logic                             valid_o,
-  output logic [(DATA_WIDTH/AXI_DATA_WIDTH)-1:0][AXI_DATA_WIDTH-1:0] rdata_o,
-  output logic [AXI_ID_WIDTH-1:0]          id_o,
+  output logic [(DATA_WIDTH/CVA6Cfg.AxiDataWidth)-1:0][CVA6Cfg.AxiDataWidth-1:0] rdata_o,
+  output logic [CVA6Cfg.AxiIdWidth-1:0]    id_o,
   // critical word - read port
-  output logic [AXI_DATA_WIDTH-1:0]        critical_word_o,
+  output logic [CVA6Cfg.AxiDataWidth-1:0]  critical_word_o,
   output logic                             critical_word_valid_o,
   // AXI port
   output axi_req_t                 axi_req_o,
   input  axi_rsp_t                 axi_resp_i
 );
-  localparam BURST_SIZE = (DATA_WIDTH/AXI_DATA_WIDTH)-1;
-  localparam ADDR_INDEX = ($clog2(DATA_WIDTH/AXI_DATA_WIDTH) > 0) ? $clog2(DATA_WIDTH/AXI_DATA_WIDTH) : 1;
+  localparam BURST_SIZE = (DATA_WIDTH/CVA6Cfg.AxiDataWidth)-1;
+  localparam ADDR_INDEX = ($clog2(DATA_WIDTH/CVA6Cfg.AxiDataWidth) > 0) ? $clog2(DATA_WIDTH/CVA6Cfg.AxiDataWidth) : 1;
 
   enum logic [3:0] {
     IDLE, WAIT_B_VALID, WAIT_AW_READY, WAIT_LAST_W_READY, WAIT_LAST_W_READY_AW_READY, WAIT_AW_READY_BURST,
@@ -60,10 +58,10 @@ module axi_adapter #(
 
   // counter for AXI transfers
   logic [ADDR_INDEX-1:0] cnt_d, cnt_q;
-  logic [(DATA_WIDTH/AXI_DATA_WIDTH)-1:0][AXI_DATA_WIDTH-1:0] cache_line_d, cache_line_q;
+  logic [(DATA_WIDTH/CVA6Cfg.AxiDataWidth)-1:0][CVA6Cfg.AxiDataWidth-1:0] cache_line_d, cache_line_q;
   // save the address for a read, as we allow for non-cacheline aligned accesses
-  logic [(DATA_WIDTH/AXI_DATA_WIDTH)-1:0] addr_offset_d, addr_offset_q;
-  logic [AXI_ID_WIDTH-1:0]    id_d, id_q;
+  logic [(DATA_WIDTH/CVA6Cfg.AxiDataWidth)-1:0] addr_offset_d, addr_offset_q;
+  logic [CVA6Cfg.AxiIdWidth-1:0]    id_d, id_q;
   logic [ADDR_INDEX-1:0]      index;
   // save the atomic operation and size
   ariane_pkg::amo_t amo_d, amo_q;
@@ -91,7 +89,7 @@ module axi_adapter #(
     axi_req_o.ar.addr   = addr_i;
     // in case of a single request or wrapping transfer we can simply begin at the address, if we want to request a cache-line
     // with an incremental transfer we need to output the corresponding base address of the cache line
-    if (!CRITICAL_WORD_FIRST && type_i != ariane_axi::SINGLE_REQ) begin
+    if (!CRITICAL_WORD_FIRST && type_i != ariane_pkg::SINGLE_REQ) begin
       axi_req_o.ar.addr[CACHELINE_BYTE_OFFSET-1:0] = '0;
     end
     axi_req_o.ar.prot   = 3'b0;
@@ -146,7 +144,7 @@ module axi_adapter #(
             // store-conditional requires exclusive access
             axi_req_o.aw.lock = amo_i == ariane_pkg::AMO_SC;
             // its a single write
-            if (type_i == ariane_axi::SINGLE_REQ) begin
+            if (type_i == ariane_pkg::SINGLE_REQ) begin
               // only a single write so the data is already the last one
               axi_req_o.w.last   = 1'b1;
               // single req can be granted here
@@ -169,14 +167,14 @@ module axi_adapter #(
               assert (amo_i == ariane_pkg::AMO_NONE)
                 else $fatal("Bursts of atomic operations are not supported");
 
-              axi_req_o.aw.len = BURST_SIZE; // number of bursts to do
+              axi_req_o.aw.len = BURST_SIZE[7:0]; // number of bursts to do
               axi_req_o.w.data = wdata_i[0];
               axi_req_o.w.strb = be_i[0];
 
               if (axi_resp_i.w_ready)
-                cnt_d = BURST_SIZE - 1;
+                cnt_d = BURST_SIZE[ADDR_INDEX-1:0] - 1;
               else
-                cnt_d = BURST_SIZE;
+                cnt_d = BURST_SIZE[ADDR_INDEX-1:0];
 
               case ({axi_resp_i.aw_ready, axi_resp_i.w_ready})
                 2'b11: state_d = WAIT_LAST_W_READY;
@@ -193,16 +191,16 @@ module axi_adapter #(
             axi_req_o.ar.lock = amo_i == ariane_pkg::AMO_LR;
 
             gnt_o = axi_resp_i.ar_ready;
-            if (type_i != ariane_axi::SINGLE_REQ) begin
+            if (type_i != ariane_pkg::SINGLE_REQ) begin
               assert (amo_i == ariane_pkg::AMO_NONE)
                 else $fatal("Bursts of atomic operations are not supported");
 
-              axi_req_o.ar.len = BURST_SIZE;
-              cnt_d = BURST_SIZE;
+              axi_req_o.ar.len = BURST_SIZE[7:0];
+              cnt_d = BURST_SIZE[ADDR_INDEX-1:0];
             end
 
             if (axi_resp_i.ar_ready) begin
-              state_d = (type_i == ariane_axi::SINGLE_REQ) ? WAIT_R_VALID : WAIT_R_VALID_MULTIPLE;
+              state_d = (type_i == ariane_pkg::SINGLE_REQ) ? WAIT_R_VALID : WAIT_R_VALID_MULTIPLE;
               addr_offset_d = addr_i[ADDR_INDEX-1+3:3];
             end
           end
@@ -225,16 +223,16 @@ module axi_adapter #(
       WAIT_LAST_W_READY_AW_READY: begin
         axi_req_o.w_valid  = 1'b1;
         axi_req_o.w.last   = (cnt_q == '0);
-        if (type_i == ariane_axi::SINGLE_REQ) begin
+        if (type_i == ariane_pkg::SINGLE_REQ) begin
           axi_req_o.w.data = wdata_i[0];
           axi_req_o.w.strb = be_i[0];
         end else begin
-          axi_req_o.w.data = wdata_i[BURST_SIZE-cnt_q];
-          axi_req_o.w.strb = be_i[BURST_SIZE-cnt_q];
+          axi_req_o.w.data = wdata_i[BURST_SIZE[ADDR_INDEX-1:0]-cnt_q];
+          axi_req_o.w.strb = be_i[BURST_SIZE[ADDR_INDEX-1:0]-cnt_q];
         end
         axi_req_o.aw_valid = 1'b1;
         // we are here because we want to write a cache line
-        axi_req_o.aw.len   = BURST_SIZE;
+        axi_req_o.aw.len   = BURST_SIZE[7:0];
         // we got an aw_ready
         case ({axi_resp_i.aw_ready, axi_resp_i.w_ready})
           // we got an aw ready
@@ -265,7 +263,7 @@ module axi_adapter #(
       // ~> all data has already been sent, we are only waiting for the aw_ready
       WAIT_AW_READY_BURST: begin
         axi_req_o.aw_valid = 1'b1;
-        axi_req_o.aw.len   = BURST_SIZE;
+        axi_req_o.aw.len   = BURST_SIZE[7:0];
 
         if (axi_resp_i.aw_ready) begin
           state_d  = WAIT_B_VALID;
@@ -277,9 +275,9 @@ module axi_adapter #(
       WAIT_LAST_W_READY: begin
         axi_req_o.w_valid = 1'b1;
 
-        if (type_i != ariane_axi::SINGLE_REQ) begin
-          axi_req_o.w.data = wdata_i[BURST_SIZE-cnt_q];
-          axi_req_o.w.strb = be_i[BURST_SIZE-cnt_q];
+        if (type_i != ariane_pkg::SINGLE_REQ) begin
+          axi_req_o.w.data = wdata_i[BURST_SIZE[ADDR_INDEX-1:0]-cnt_q];
+          axi_req_o.w.strb = be_i[BURST_SIZE[ADDR_INDEX-1:0]-cnt_q];
         end
 
         // this is the last write
@@ -350,9 +348,9 @@ module axi_adapter #(
       // ~> cacheline read, single read
       WAIT_R_VALID_MULTIPLE, WAIT_R_VALID: begin
         if (CRITICAL_WORD_FIRST)
-          index = addr_offset_q + (BURST_SIZE-cnt_q);
+          index = addr_offset_q + (BURST_SIZE[ADDR_INDEX-1:0]-cnt_q);
         else
-          index = BURST_SIZE-cnt_q;
+          index = BURST_SIZE[ADDR_INDEX-1:0]-cnt_q;
 
         // reads are always wrapping here
         axi_req_o.r_ready = 1'b1;

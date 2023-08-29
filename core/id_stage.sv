@@ -13,9 +13,11 @@
 // Description: Instruction decode, contains the logic for decode,
 //              issue and read operands.
 
-module id_stage (
-    input  logic                          	clk_i,
-    input  logic                          	rst_ni,
+module id_stage #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty
+) (
+    input  logic                          clk_i,
+    input  logic                          rst_ni,
 
     input  logic                          	flush_i,
     input  logic                          	debug_req_i,
@@ -29,15 +31,16 @@ module id_stage (
     output logic                          	is_ctrl_flow_o,      // the instruction we issue is a ctrl flow instructions
     input  logic                          	issue_instr_ack_i,   // issue stage acknowledged sampling of instructions
     // from CSR file
-    input  riscv::priv_lvl_t              	priv_lvl_i,          // current privilege level
-    input  riscv::xs_t                    	fs_i,                // floating point extension status
-    input  logic [2:0]                    	frm_i,               // floating-point dynamic rounding mode
-    input  logic [1:0]                    	irq_i,
-    input  ariane_pkg::irq_ctrl_t         	irq_ctrl_i,
-    input  logic                          	debug_mode_i,        // we are in debug mode
-    input  logic                          	tvm_i,
-    input  logic                          	tw_i,
-    input  logic                          	tsr_i,
+    input  riscv::priv_lvl_t              priv_lvl_i,          // current privilege level
+    input  riscv::xs_t                    fs_i,                // floating point extension status
+    input  logic [2:0]                    frm_i,               // floating-point dynamic rounding mode
+    input  riscv::xs_t                    vs_i,                // vector extension status
+    input  logic [1:0]                    irq_i,
+    input  ariane_pkg::irq_ctrl_t         irq_ctrl_i,
+    input  logic                          debug_mode_i,        // we are in debug mode
+    input  logic                          tvm_i,
+    input  logic                          tw_i,
+    input  logic                          tsr_i,
     // for RM
     input  ariane_pkg::lane_ctrl [ariane_pkg::RM_NUM_EVENTS-1:0]	reset_monitor,
     output ariane_pkg::lane_ctrl                            rm_event_id_stage_s1_o
@@ -57,11 +60,13 @@ module id_stage (
     logic                [31:0] instruction;
     logic                is_compressed;
 
-    if (ariane_pkg::RVC) begin
+    if (CVA6Cfg.RVC) begin
       // ---------------------------------------------------------
       // 1. Check if they are compressed and expand in case they are
       // ---------------------------------------------------------
-      compressed_decoder compressed_decoder_i (
+      compressed_decoder #(
+          .CVA6Cfg   ( CVA6Cfg   )
+      ) compressed_decoder_i (
           .instr_i                 ( fetch_entry_i.instruction   ),
           .instr_o                 ( instruction                 ),
           .illegal_instr_o         ( is_illegal                  ),
@@ -75,7 +80,9 @@ module id_stage (
     // ---------------------------------------------------------
     // 2. Decode and emit instruction to issue stage
     // ---------------------------------------------------------
-    decoder decoder_i (
+    decoder #(
+        .CVA6Cfg   ( CVA6Cfg   )
+    ) decoder_i (
         .debug_req_i,
         .irq_ctrl_i,
         .irq_i,
@@ -90,6 +97,7 @@ module id_stage (
         .debug_mode_i            ( debug_mode_i                    ),
         .fs_i,
         .frm_i,
+        .vs_i,
         .tvm_i,
         .tw_i,
         .tsr_i,

@@ -25,12 +25,6 @@
 
 package ariane_pkg;
 
-    // ---------------
-    // Global Config
-    // ---------------
-    // This is the new user config interface system. If you need to parameterize something
-    // within Ariane add a field here and assign a default value to the config. Please make
-    // sure to add a propper parameter check to the `check_cfg` function.
     localparam NrMaxRules = 16;
     typedef struct packed {
       int                               RASDepth;
@@ -96,7 +90,7 @@ package ariane_pkg;
     function automatic logic range_check(logic[63:0] base, logic[63:0] len, logic[63:0] address);
       // if len is a power of two, and base is properly aligned, this check could be simplified
       // Extend base by one bit to prevent an overflow.
-      return (address >= base) && (address < (65'(base)+len));
+      return (address >= base) && (({1'b0, address}) < (65'(base)+len));
     endfunction : range_check
 
     function automatic logic is_inside_nonidempotent_regions (ariane_cfg_t Cfg, logic[63:0] address);
@@ -133,7 +127,6 @@ package ariane_pkg;
                                                       // to uniquely identify the entry in the scoreboard
     localparam ASID_WIDTH    = (riscv::XLEN == 64) ? 16 : 1;
     localparam BITS_SATURATION_COUNTER = 2;
-    localparam NR_COMMIT_PORTS = cva6_config_pkg::CVA6ConfigNrCommitPorts;
 
     localparam ENABLE_RENAME = cva6_config_pkg::CVA6ConfigRenameEn;
 
@@ -155,23 +148,6 @@ package ariane_pkg;
 
     localparam bit RVC = cva6_config_pkg::CVA6ConfigCExtEn; // Is C extension configuration
 
-`ifdef PITON_ARIANE
-    // Floating-point extensions configuration
-    localparam bit RVF = riscv::IS_XLEN64; // Is F extension enabled
-    localparam bit RVD = riscv::IS_XLEN64; // Is D extension enabled
-`else
-    // Floating-point extensions configuration
-    localparam bit RVF = (riscv::IS_XLEN64 | riscv::IS_XLEN32) & riscv::FPU_EN; // Is F extension enabled for both 32 Bit and 64 bit CPU
-    localparam bit RVD = (riscv::IS_XLEN64 ? 1:0) & riscv::FPU_EN;              // Is D extension enabled for only 64 bit CPU
-`endif
-    localparam bit RVA = cva6_config_pkg::CVA6ConfigAExtEn; // Is A extension enabled
-
-    // Transprecision floating-point extensions configuration
-    localparam bit XF16    = cva6_config_pkg::CVA6ConfigF16En; // Is half-precision float extension (Xf16) enabled
-    localparam bit XF16ALT = cva6_config_pkg::CVA6ConfigF16AltEn; // Is alternative half-precision float extension (Xf16alt) enabled
-    localparam bit XF8     = cva6_config_pkg::CVA6ConfigF8En; // Is quarter-precision float extension (Xf8) enabled
-    localparam bit XFVEC   = cva6_config_pkg::CVA6ConfigFVecEn; // Is vectorial float extension (Xfvec) enabled
-
     // Transprecision float unit
     localparam int unsigned LAT_COMP_FP32    = 'd2;
     localparam int unsigned LAT_COMP_FP64    = 'd3;
@@ -182,53 +158,14 @@ package ariane_pkg;
     localparam int unsigned LAT_NONCOMP      = 'd1;
     localparam int unsigned LAT_CONV         = 'd2;
 
-    // --------------------------------------
-    // vvvv Don't change these by hand! vvvv
-    localparam bit FP_PRESENT = RVF | RVD | XF16 | XF16ALT | XF8;
-
-    // Length of widest floating-point format
-    localparam FLEN    = RVD     ? 64 : // D ext.
-                         RVF     ? 32 : // F ext.
-                         XF16    ? 16 : // Xf16 ext.
-                         XF16ALT ? 16 : // Xf16alt ext.
-                         XF8     ? 8 :  // Xf8 ext.
-                         1;             // Unused in case of no FP
-
-    localparam bit NSX = XF16 | XF16ALT | XF8 | XFVEC; // Are non-standard extensions present?
-
-    localparam bit RVFVEC     = RVF     & XFVEC & FLEN>32; // FP32 vectors available if vectors and larger fmt enabled
-    localparam bit XF16VEC    = XF16    & XFVEC & FLEN>16; // FP16 vectors available if vectors and larger fmt enabled
-    localparam bit XF16ALTVEC = XF16ALT & XFVEC & FLEN>16; // FP16ALT vectors available if vectors and larger fmt enabled
-    localparam bit XF8VEC     = XF8     & XFVEC & FLEN>8;  // FP8 vectors available if vectors and larger fmt enabled
-    // ^^^^ until here ^^^^
-    // ---------------------
-
     localparam riscv::xlen_t OPENHWGROUP_MVENDORID = {{riscv::XLEN-32{1'b0}}, 32'h0602};
     localparam riscv::xlen_t ARIANE_MARCHID = {{riscv::XLEN-32{1'b0}}, 32'd3};
-
-    localparam riscv::xlen_t ISA_CODE = (riscv::XLEN'(RVA) <<  0)                         // A - Atomic Instructions extension
-                                      | (riscv::XLEN'(RVC) <<  2)                         // C - Compressed extension
-                                      | (riscv::XLEN'(RVD) <<  3)                         // D - Double precsision floating-point extension
-                                      | (riscv::XLEN'(RVF) <<  5)                         // F - Single precsision floating-point extension
-                                      | (riscv::XLEN'(1  ) <<  8)                         // I - RV32I/64I/128I base ISA
-                                      | (riscv::XLEN'(1  ) << 12)                         // M - Integer Multiply/Divide extension
-                                      | (riscv::XLEN'(0  ) << 13)                         // N - User level interrupts supported
-                                      | (riscv::XLEN'(1  ) << 18)                         // S - Supervisor mode implemented
-                                      | (riscv::XLEN'(1  ) << 20)                         // U - User mode implemented
-                                      | (riscv::XLEN'(NSX) << 23)                         // X - Non-standard extensions present
-                                      | ((riscv::XLEN == 64 ? 2 : 1) << riscv::XLEN-2);  // MXL
 
     // 32 registers + 1 bit for re-naming = 6
     localparam REG_ADDR_SIZE = 6;
 
-    localparam bit CVXIF_PRESENT = cva6_config_pkg::CVA6ConfigCvxifEn;
-
-    // when cvx interface is present, use an additional writeback port
-    localparam NR_WB_PORTS = CVXIF_PRESENT ? 5 : 4;
-
     // Read ports for general purpose register files
     localparam NR_RGPR_PORTS = 2;
-    typedef logic [(NR_RGPR_PORTS == 3 ? riscv::XLEN : FLEN)-1:0] rs3_len_t;
 
     // static debug hartinfo
     localparam ariane_dm_pkg::hartinfo_t DebugHartInfo = '{
@@ -285,15 +222,14 @@ package ariane_pkg;
     // AXI
     // ---------------
 
-    localparam AXI_ID_WIDTH = cva6_config_pkg::CVA6ConfigAxiIdWidth;
-    localparam AXI_ADDR_WIDTH = cva6_config_pkg::CVA6ConfigAxiAddrWidth;
-    localparam AXI_DATA_WIDTH = cva6_config_pkg::CVA6ConfigAxiDataWidth;
     localparam FETCH_USER_WIDTH = cva6_config_pkg::CVA6ConfigFetchUserWidth;
     localparam DATA_USER_WIDTH = cva6_config_pkg::CVA6ConfigDataUserWidth;
     localparam AXI_USER_EN = cva6_config_pkg::CVA6ConfigDataUserEn | cva6_config_pkg::CVA6ConfigFetchUserEn;
     localparam AXI_USER_WIDTH = cva6_config_pkg::CVA6ConfigDataUserWidth;
     localparam DATA_USER_EN = cva6_config_pkg::CVA6ConfigDataUserEn;
     localparam FETCH_USER_EN = cva6_config_pkg::CVA6ConfigFetchUserEn;
+
+    typedef enum logic { SINGLE_REQ, CACHE_LINE_REQ } ad_req_t;
 
     // ---------------
     // Fetch Stage
@@ -391,7 +327,8 @@ package ariane_pkg;
         CSR,       // 6
         FPU,       // 7
         FPU_VEC,   // 8
-        CVXIF      // 9
+        CVXIF,     // 9
+        ACCEL      // 10
     } fu_t;
 
     localparam EXC_OFF_RST      = 8'h80;
@@ -570,7 +507,9 @@ package ariane_pkg;
                                // Shift with Add (Bitmanip)
                                SH1ADD, SH2ADD, SH3ADD,
                                // Bitmanip Logical with negate op (Bitmanip)
-                               ANDN, ORN, XNOR
+                               ANDN, ORN, XNOR,
+                               // Accelerator operations
+                               ACCEL_OP, ACCEL_OP_FS1, ACCEL_OP_FD, ACCEL_OP_LOAD, ACCEL_OP_STORE
                              } fu_op;
 
     typedef struct packed {
@@ -592,8 +531,14 @@ package ariane_pkg;
     // -------------------------------
     // Extract Src/Dst FP Reg from Op
     // -------------------------------
+    // function used in instr_trace svh
+    // is_rs1_fpr function is kept to allow cva6 compilation with instr_trace feature
     function automatic logic is_rs1_fpr (input fu_op op);
-        if (FP_PRESENT) begin // makes function static for non-fp case
+        return is_rs1_fpr_cfg (op, 1);
+    endfunction
+
+    function automatic logic is_rs1_fpr_cfg (input fu_op op, input bit FpPresent);
+        if (FpPresent) begin
             unique case (op) inside
                 [FMUL:FNMADD],                   // Computational Operations (except ADD/SUB)
                 FCVT_F2I,                        // Float-Int Casts
@@ -602,15 +547,23 @@ package ariane_pkg;
                 FMV_F2X,                         // FPR-GPR Moves
                 FCMP,                            // Comparisons
                 FCLASS,                          // Classifications
-                [VFMIN:VFCPKCD_D] : return 1'b1; // Additional Vectorial FP ops
+                [VFMIN:VFCPKCD_D],               // Additional Vectorial FP ops
+                ACCEL_OP_FS1      : return 1'b1; // Accelerator instructions
                 default           : return 1'b0; // all other ops
             endcase
-        end else
+        end else begin
             return 1'b0;
+        end
     endfunction
 
+    // function used in instr_trace svh
+    // is_rs2_fpr function is kept to allow cva6 compilation with instr_trace feature
     function automatic logic is_rs2_fpr (input fu_op op);
-        if (FP_PRESENT) begin // makes function static for non-fp case
+        return is_rs2_fpr_cfg (op, 1);
+    endfunction
+
+    function automatic logic is_rs2_fpr_cfg (input fu_op op, input bit FpPresent);
+        if (FpPresent) begin
             unique case (op) inside
                 [FSD:FSB],                       // FP Stores
                 [FADD:FMIN_MAX],                 // Computational Operations (no sqrt)
@@ -621,25 +574,39 @@ package ariane_pkg;
                 [VFMIN:VFCPKCD_D] : return 1'b1; // Additional Vectorial FP ops
                 default           : return 1'b0; // all other ops
             endcase
-        end else
+        end else begin
             return 1'b0;
+        end
     endfunction
 
+    // function used in instr_trace svh
+    // is_imm_fpr function is kept to allow cva6 compilation with instr_trace feature
     // ternary operations encode the rs3 address in the imm field, also add/sub
     function automatic logic is_imm_fpr (input fu_op op);
-        if (FP_PRESENT) begin // makes function static for non-fp case
+        return is_imm_fpr_cfg (op, 1);
+    endfunction
+
+    function automatic logic is_imm_fpr_cfg (input fu_op op, input bit FpPresent);
+        if (FpPresent) begin
             unique case (op) inside
                 [FADD:FSUB],                         // ADD/SUB need inputs as Operand B/C
                 [FMADD:FNMADD],                      // Fused Computational Operations
                 [VFCPKAB_S:VFCPKCD_D] : return 1'b1; // Vectorial FP cast and pack ops
                 default               : return 1'b0; // all other ops
             endcase
-        end else
+        end else begin
             return 1'b0;
+        end
     endfunction
 
+    // function used in instr_trace svh
+    // is_rd_fpr function is kept to allow cva6 compilation with instr_trace feature
     function automatic logic is_rd_fpr (input fu_op op);
-        if (FP_PRESENT) begin // makes function static for non-fp case
+        return is_rd_fpr_cfg (op, 1);
+    endfunction
+
+    function automatic logic is_rd_fpr_cfg (input fu_op op, input bit FpPresent);
+        if (FpPresent) begin
             unique case (op) inside
                 [FLD:FLB],                           // FP Loads
                 [FADD:FNMADD],                       // Computational Operations
@@ -648,11 +615,13 @@ package ariane_pkg;
                 FSGNJ,                               // Sign Injections
                 FMV_X2F,                             // GPR-FPR Moves
                 [VFMIN:VFSGNJX],                     // Vectorial MIN/MAX and SGNJ
-                [VFCPKAB_S:VFCPKCD_D] : return 1'b1; // Vectorial FP cast and pack ops
+                [VFCPKAB_S:VFCPKCD_D],               // Vectorial FP cast and pack ops
+                ACCEL_OP_FD           : return 1'b1; // Accelerator instructions
                 default               : return 1'b0; // all other ops
             endcase
-        end else
+        end else begin
             return 1'b0;
+        end
     endfunction
 
     function automatic logic is_amo (fu_op op);
@@ -695,7 +664,6 @@ package ariane_pkg;
     // ---------------
 
     localparam RVFI = cva6_config_pkg::CVA6ConfigRvfiTrace;
-    typedef rvfi_pkg::rvfi_instr_t [NR_COMMIT_PORTS-1:0] rvfi_port_t;
 
     typedef struct packed {
         logic [riscv::VLEN-1:0]   pc;            // PC of instruction
@@ -726,6 +694,7 @@ package ariane_pkg;
         riscv::xlen_t               lsu_wdata;   // information needed by RVFI
 	runtime_monitor_ctrl	    rm_cnt;
 
+        logic                       vfp;         // is this a vector floating-point instruction?
     } scoreboard_entry_t;
 
 
@@ -799,12 +768,12 @@ package ariane_pkg;
         logic                     fetch_valid;     // address translation valid
         logic [riscv::PLEN-1:0]   fetch_paddr;     // physical address in
         exception_t               fetch_exception; // exception occurred during fetch
-    } icache_areq_i_t;
+    } icache_areq_t;
 
     typedef struct packed {
         logic                     fetch_req;       // address translation request
         logic [riscv::VLEN-1:0]   fetch_vaddr;     // virtual address out
-    } icache_areq_o_t;
+    } icache_arsp_t;
 
     // I$ data requests
     typedef struct packed {
@@ -813,7 +782,7 @@ package ariane_pkg;
         logic                     kill_s2;                // kill the last request
         logic                     spec;                   // request is speculative
         logic [riscv::VLEN-1:0]   vaddr;                  // 1st cycle: 12 bit index is taken for lookup
-    } icache_dreq_i_t;
+    } icache_dreq_t;
 
     typedef struct packed {
         logic                     ready;                  // icache is ready
@@ -822,7 +791,7 @@ package ariane_pkg;
         logic [FETCH_USER_WIDTH-1:0] user;                // User bits
         logic [riscv::VLEN-1:0]   vaddr;                  // virtual address out
         exception_t               ex;                     // we've encountered an exception
-    } icache_dreq_o_t;
+    } icache_drsp_t;
 
     // AMO request going to cache. this request is unconditionally valid as soon
     // as request goes high.

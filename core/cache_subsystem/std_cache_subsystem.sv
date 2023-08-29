@@ -16,15 +16,13 @@
 
 
 module std_cache_subsystem import ariane_pkg::*; import std_cache_pkg::*; #(
+    parameter config_pkg::cva6_cfg_t CVA6Cfg = config_pkg::cva6_cfg_empty,
     parameter ariane_cfg_t ArianeCfg = ArianeDefaultConfig,  // contains cacheable regions
-    parameter int unsigned AxiAddrWidth = 0,
-    parameter int unsigned AxiDataWidth = 0,
-    parameter int unsigned AxiIdWidth   = 0,
-    parameter type axi_ar_chan_t = ariane_axi::ar_chan_t,
-    parameter type axi_aw_chan_t = ariane_axi::aw_chan_t,
-    parameter type axi_w_chan_t  = ariane_axi::w_chan_t,
-    parameter type axi_req_t = ariane_axi::req_t,
-    parameter type axi_rsp_t = ariane_axi::resp_t
+    parameter type axi_ar_chan_t = logic,
+    parameter type axi_aw_chan_t = logic,
+    parameter type axi_w_chan_t  = logic,
+    parameter type axi_req_t = logic,
+    parameter type axi_rsp_t = logic
 ) (
     input logic                            clk_i,
     input logic                            rst_ni,
@@ -34,11 +32,11 @@ module std_cache_subsystem import ariane_pkg::*; import std_cache_pkg::*; #(
     input  logic                           icache_flush_i,         // flush the icache, flush and kill have to be asserted together
     output logic                           icache_miss_o,          // to performance counter
     // address translation requests
-    input  icache_areq_i_t                 icache_areq_i,          // to/from frontend
-    output icache_areq_o_t                 icache_areq_o,
+    input  icache_areq_t                 icache_areq_i,          // to/from frontend
+    output icache_arsp_t                 icache_areq_o,
     // data requests
-    input  icache_dreq_i_t                 icache_dreq_i,          // to/from frontend
-    output icache_dreq_o_t                 icache_dreq_o,
+    input  icache_dreq_t                 icache_dreq_i,          // to/from frontend
+    output icache_drsp_t                 icache_dreq_o,
     // AMOs
     input  amo_req_t                       amo_req_i,
     output amo_resp_t                      amo_resp_o,
@@ -67,10 +65,8 @@ module std_cache_subsystem import ariane_pkg::*; import std_cache_pkg::*; #(
     axi_rsp_t axi_resp_data;
 
     cva6_icache_axi_wrapper #(
+        .CVA6Cfg      ( CVA6Cfg      ),
         .ArianeCfg    ( ArianeCfg    ),
-        .AxiAddrWidth ( AxiAddrWidth ),
-        .AxiDataWidth ( AxiDataWidth ),
-        .AxiIdWidth   ( AxiIdWidth   ),
         .axi_req_t    ( axi_req_t    ),
         .axi_rsp_t    ( axi_rsp_t    )
     ) i_cva6_icache_axi_wrapper (
@@ -93,10 +89,8 @@ module std_cache_subsystem import ariane_pkg::*; import std_cache_pkg::*; #(
    // Port 1: Load Unit
    // Port 2: Store Unit
    std_nbdcache #(
+      .CVA6Cfg          ( CVA6Cfg      ),
       .ArianeCfg        ( ArianeCfg    ),
-      .AXI_ADDR_WIDTH   ( AxiAddrWidth ),
-      .AXI_DATA_WIDTH   ( AxiDataWidth ),
-      .AXI_ID_WIDTH     ( AxiIdWidth   ),
       .axi_req_t        ( axi_req_t    ),
       .axi_rsp_t        ( axi_rsp_t    )
    ) i_nbdcache (
