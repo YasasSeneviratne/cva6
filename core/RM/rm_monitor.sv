@@ -1,11 +1,12 @@
 module rm_monitor#(
-	parameter NUM_LANES	= 	5,
-	parameter NUM_EVENTS	= 	10,
-	parameter NUM_RULES	= 	5
+	parameter NUM_LANES		= 	5,
+	parameter NUM_EVENTS		= 	10,
+	parameter NUM_MONITORED_INS     =       2,
+	parameter NUM_RULES		= 	5
 	)(
 	input logic 					clk_i,
 	input logic					rst_ni,
-	input logic [NUM_LANES-1:0][NUM_EVENTS-1:0]	lane_vector_i,
+	input logic [NUM_LANES-1:0][NUM_MONITORED_INS-1:0][NUM_EVENTS-1:0]	lane_vector_i,
 	input logic [NUM_LANES-1:0]			lane_reset_i,
 	output logic [NUM_LANES-1: 0][NUM_RULES-1:0]	monitor_o
 	);

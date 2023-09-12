@@ -340,12 +340,15 @@ module load_store_unit import ariane_pkg::*; #(
     // amount of pipeline registers inserted for load/store return path
     // can be tuned to trade-off IPC vs. cycle time
 
+    //logic [$bits(ld_valid) + $bits(ld_trans_id) + $bits(ld_result) + $bits(ld_ex) + $bits(ld_pc) + $bits(ld_rm) - 1: 0] tmp;
+    //assign tmp = {$bits(ld_valid) + $bits(ld_trans_id) + $bits(ld_result) + $bits(ld_ex) + $bits(ld_pc) + $bits(ld_rm) {flush_i}};
     shift_reg #(
         .dtype ( logic[$bits(ld_valid) + $bits(ld_trans_id) + $bits(ld_result) + $bits(ld_ex) + $bits(ld_pc) + $bits(ld_rm) - 1: 0]),
         .Depth ( cva6_config_pkg::CVA6ConfigNrLoadPipeRegs )
     ) i_pipe_reg_load (
         .clk_i,
         .rst_ni,
+        //.d_i ( {ld_valid, ld_trans_id, ld_result, ld_ex, ld_pc, ld_rm} & ~tmp),
         .d_i ( {ld_valid, ld_trans_id, ld_result, ld_ex, ld_pc, ld_rm}),
         .d_o ( {load_valid_o, load_trans_id_o, load_result_o, load_exception_o, load_pc_o, load_rm_o} )
     );

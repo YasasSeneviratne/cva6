@@ -208,6 +208,7 @@ module scoreboard #(
         mem_n[i].issued       = 1'b0;
         mem_n[i].sbe.valid    = 1'b0;
         mem_n[i].sbe.ex.valid = 1'b0;
+        mem_n[i].sbe.rm_cnt   = '0;
       end
     end
   end

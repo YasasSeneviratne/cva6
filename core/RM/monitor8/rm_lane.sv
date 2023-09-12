@@ -9,29 +9,47 @@ module rm_lane#(
 	);
 
 
-	logic [7:0] c0_i;
-	logic [7:0] c1_i;
-	logic [7:0] c2_i;
-	logic [7:0] c3_i;
-	logic [7:0] c4_i;
-	logic [7:0] c5_i;
-	logic [7:0] c6_i;
-	logic [7:0] c7_i;
+	logic [7:0] c0sw_i;
+	logic [7:0] c1sw_i;
+	logic [7:0] c2sw_i;
+	logic [7:0] c3sw_i;
+	logic [7:0] c4sw_i;
+	logic [7:0] c5sw_i;
+	logic [7:0] c6sw_i;
+	logic [7:0] c7sw_i;
 
 
-	assign c0_i = {lane_vector_i[3],lane_vector_i[25],lane_vector_i[4],lane_vector_i[5],lane_vector_i[8],lane_vector_i[9],lane_vector_i[12],lane_vector_i[19]};
-	assign c1_i = {1'b0,lane_vector_i[8],lane_vector_i[12],lane_vector_i[16],lane_vector_i[2],lane_vector_i[21],lane_vector_i[3],lane_vector_i[13]};
-	assign c2_i = {lane_vector_i[5],lane_vector_i[17],lane_vector_i[2],lane_vector_i[8],lane_vector_i[20],lane_vector_i[3],lane_vector_i[26],lane_vector_i[15]};
-	assign c3_i = {lane_vector_i[2],lane_vector_i[9],lane_vector_i[13],lane_vector_i[20],lane_vector_i[21],lane_vector_i[17],lane_vector_i[25],lane_vector_i[15]};
-	assign c4_i = {lane_vector_i[21],lane_vector_i[15],lane_vector_i[2],lane_vector_i[4],lane_vector_i[5],lane_vector_i[20],lane_vector_i[22],lane_vector_i[23]};
-	assign c5_i = {lane_vector_i[4],lane_vector_i[20],lane_vector_i[26],lane_vector_i[2],lane_vector_i[12],lane_vector_i[16],lane_vector_i[25],lane_vector_i[11]};
-	assign c6_i = {lane_vector_i[7],lane_vector_i[11],lane_vector_i[19],lane_vector_i[20],lane_vector_i[21],lane_vector_i[26],lane_vector_i[22],lane_vector_i[23]};
-	assign c7_i = {lane_vector_i[22],lane_vector_i[23],lane_vector_i[7],lane_vector_i[25],lane_vector_i[26],lane_vector_i[5],lane_vector_i[9],lane_vector_i[13]};
+	logic [7:0] c0lw_i;
+	logic [7:0] c1lw_i;
+	logic [7:0] c2lw_i;
+	logic [7:0] c3lw_i;
+	logic [7:0] c4lw_i;
+	logic [7:0] c5lw_i;
+	logic [7:0] c6lw_i;
+	logic [7:0] c7lw_i;
+
+	assign c0sw_i = {lane_vector_i[3],lane_vector_i[25],lane_vector_i[4],lane_vector_i[5],lane_vector_i[8],lane_vector_i[9],lane_vector_i[12],lane_vector_i[19]};
+	assign c1sw_i = {1'b0,lane_vector_i[8],lane_vector_i[12],lane_vector_i[16],lane_vector_i[2],lane_vector_i[21],lane_vector_i[3],lane_vector_i[13]};
+	assign c2sw_i = {lane_vector_i[5],lane_vector_i[17],lane_vector_i[2],lane_vector_i[8],lane_vector_i[20],lane_vector_i[3],lane_vector_i[26],lane_vector_i[15]};
+	assign c3sw_i = {lane_vector_i[2],lane_vector_i[9],lane_vector_i[13],lane_vector_i[20],lane_vector_i[21],lane_vector_i[17],lane_vector_i[25],lane_vector_i[15]};
+	assign c4sw_i = {lane_vector_i[21],lane_vector_i[15],lane_vector_i[2],lane_vector_i[4],lane_vector_i[5],lane_vector_i[20],lane_vector_i[22],lane_vector_i[23]};
+	assign c5sw_i = {lane_vector_i[4],lane_vector_i[20],lane_vector_i[26],lane_vector_i[2],lane_vector_i[12],lane_vector_i[16],lane_vector_i[25],lane_vector_i[11]};
+	assign c6sw_i = {lane_vector_i[7],lane_vector_i[11],lane_vector_i[19],lane_vector_i[20],lane_vector_i[21],lane_vector_i[26],lane_vector_i[22],lane_vector_i[23]};
+	assign c7sw_i = {lane_vector_i[22],lane_vector_i[23],lane_vector_i[7],lane_vector_i[25],lane_vector_i[26],lane_vector_i[5],lane_vector_i[9],lane_vector_i[13]};
+
+	assign c0lw_i = {2'b0,lane_vector_i[7],lane_vector_i[15],lane_vector_i[28],lane_vector_i[30],lane_vector_i[24],lane_vector_i[19]};
+	assign c1lw_i = {2'b0,lane_vector_i[12],lane_vector_i[16],lane_vector_i[27],lane_vector_i[13],lane_vector_i[29],lane_vector_i[24]};
+	assign c2lw_i = {1'b0,lane_vector_i[28],lane_vector_i[30],lane_vector_i[11],lane_vector_i[8],lane_vector_i[24],lane_vector_i[12],lane_vector_i[3]};
+	assign c3lw_i = {1'b0,lane_vector_i[13],lane_vector_i[2],lane_vector_i[3],lane_vector_i[28],lane_vector_i[16],lane_vector_i[30],lane_vector_i[17]};
+	assign c4lw_i = {1'b0,lane_vector_i[4],lane_vector_i[5],lane_vector_i[27],lane_vector_i[28],lane_vector_i[24],lane_vector_i[13],lane_vector_i[30]};
+	assign c5lw_i = {lane_vector_i[29],lane_vector_i[24],lane_vector_i[27],lane_vector_i[5],lane_vector_i[9],lane_vector_i[30],lane_vector_i[2],lane_vector_i[3]};
+	assign c6lw_i = {lane_vector_i[17],lane_vector_i[19],lane_vector_i[27],lane_vector_i[28],lane_vector_i[29],lane_vector_i[24],lane_vector_i[3],lane_vector_i[4]};
+	assign c7lw_i = {lane_vector_i[27],lane_vector_i[8],lane_vector_i[9],lane_vector_i[28],lane_vector_i[12],lane_vector_i[2],lane_vector_i[24],lane_vector_i[4]};
 
         Top_ModuleC0 c0(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c0_i),
+	.symbols(c0sw_i),
 	.run(1'b1)
         ,.ltl0c0(monitor_o[0])
         ,.ltl1c0(monitor_o[1])   
@@ -50,7 +68,7 @@ module rm_lane#(
         Top_ModuleC1 c1(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c1_i),
+	.symbols(c1sw_i),
 	.run(1'b1)
         ,.ltl0c1(monitor_o[11])  
         ,.ltl1c1(monitor_o[12])  
@@ -67,7 +85,7 @@ module rm_lane#(
         Top_ModuleC2 c2(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c2_i),
+	.symbols(c2sw_i),
 	.run(1'b1)
         ,.ltl0c2(monitor_o[20])  
         ,.ltl1c2(monitor_o[21])  
@@ -84,7 +102,7 @@ module rm_lane#(
 	Top_ModuleC3 c3(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c3_i),
+	.symbols(c3sw_i),
 	.run(1'b1)
         ,.ltl0c3(monitor_o[30]) 
         ,.ltl1c3(monitor_o[31]) 
@@ -103,7 +121,7 @@ module rm_lane#(
 	Top_ModuleC4 c4(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c4_i),
+	.symbols(c4sw_i),
 	.run(1'b1)
         ,.ltl0c4(monitor_o[40]) 
         ,.ltl1c4(monitor_o[41]) 
@@ -119,7 +137,7 @@ module rm_lane#(
 	Top_ModuleC5 c5(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c5_i),
+	.symbols(c5sw_i),
 	.run(1'b1)
         ,.ltl0c5(monitor_o[47]) 
         ,.ltl1c5(monitor_o[48]) 
@@ -136,7 +154,7 @@ module rm_lane#(
 	Top_ModuleC6 c6(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c6_i),
+	.symbols(c6sw_i),
 	.run(1'b1)
         ,.ltl0c6(monitor_o[56]) 
         ,.ltl1c6(monitor_o[57]) 
@@ -158,7 +176,7 @@ module rm_lane#(
 	Top_ModuleC7 c7(
 	.clk(clk_i),
 	.reset(lane_reset_i),
-	.symbols(c7_i),
+	.symbols(c7sw_i),
 	.run(1'b1)
         ,.ltl0c7(monitor_o[69]) 
         ,.ltl1c7(monitor_o[70]) 
@@ -171,4 +189,140 @@ module rm_lane#(
         ,.ltl8c7(monitor_o[77]) 
 	);
 	
+
+
+	Top_ModuleC0lw c8(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c0lw_i),
+	.run(1'b1)
+        ,.ltl0c0lw(monitor_o[78]) 
+        ,.ltl1c0lw(monitor_o[79]) 
+        ,.ltl2c0lw(monitor_o[80]) 
+        ,.ltl3c0lw(monitor_o[81]) 
+        ,.ltl4c0lw(monitor_o[82]) 
+        ,.ltl5c0lw(monitor_o[83]) 
+        ,.ltl6c0lw(monitor_o[84]) 
+	);
+
+
+	Top_ModuleC1lw c9(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c1lw_i),
+	.run(1'b1)
+        ,.ltl0c1lw(monitor_o[85]) 
+        ,.ltl1c1lw(monitor_o[86]) 
+        ,.ltl2c1lw(monitor_o[87]) 
+        ,.ltl3c1lw(monitor_o[88]) 
+        ,.ltl4c1lw(monitor_o[89]) 
+	);
+
+
+	Top_ModuleC2lw c10(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c2lw_i),
+	.run(1'b1)
+        ,.ltl0c2lw(monitor_o[90]) 
+        ,.ltl1c2lw(monitor_o[91]) 
+        ,.ltl2c2lw(monitor_o[92]) 
+        ,.ltl3c2lw(monitor_o[93]) 
+        ,.ltl4c2lw(monitor_o[94]) 
+        ,.ltl5c2lw(monitor_o[95]) 
+        ,.ltl6c2lw(monitor_o[96]) 
+        ,.ltl7c2lw(monitor_o[97]) 
+        ,.ltl8c2lw(monitor_o[98]) 
+        ,.ltl9c2lw(monitor_o[99]) 
+	);
+
+
+	Top_ModuleC3lw c11(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c3lw_i),
+	.run(1'b1)
+        ,.ltl0c3lw(monitor_o[100]) 
+        ,.ltl1c3lw(monitor_o[101]) 
+        ,.ltl2c3lw(monitor_o[102]) 
+        ,.ltl3c3lw(monitor_o[103]) 
+        ,.ltl4c3lw(monitor_o[104]) 
+        ,.ltl5c3lw(monitor_o[105]) 
+        ,.ltl6c3lw(monitor_o[106]) 
+        ,.ltl7c3lw(monitor_o[107]) 
+        ,.ltl8c3lw(monitor_o[108]) 
+        ,.ltl9c3lw(monitor_o[109]) 
+	);
+
+
+	Top_ModuleC4lw c12(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c4lw_i),
+	.run(1'b1)
+        ,.ltl0c4lw(monitor_o[110]) 
+        ,.ltl1c4lw(monitor_o[111]) 
+        ,.ltl2c4lw(monitor_o[112]) 
+        ,.ltl3c4lw(monitor_o[113]) 
+        ,.ltl4c4lw(monitor_o[114]) 
+        ,.ltl5c4lw(monitor_o[115]) 
+        ,.ltl6c4lw(monitor_o[116]) 
+        ,.ltl7c4lw(monitor_o[117]) 
+        ,.ltl8c4lw(monitor_o[118]) 
+	);
+
+
+	Top_ModuleC5lw c13(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c5lw_i),
+	.run(1'b1)
+        ,.ltl0c5lw(monitor_o[119]) 
+        ,.ltl1c5lw(monitor_o[120]) 
+        ,.ltl2c5lw(monitor_o[121]) 
+        ,.ltl3c5lw(monitor_o[122]) 
+        ,.ltl4c5lw(monitor_o[123]) 
+        ,.ltl5c5lw(monitor_o[124]) 
+        ,.ltl6c5lw(monitor_o[125]) 
+        ,.ltl7c5lw(monitor_o[126]) 
+        ,.ltl8c5lw(monitor_o[127]) 
+        ,.ltl9c5lw(monitor_o[128]) 
+	);
+
+
+	Top_ModuleC6lw c14(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c6lw_i),
+	.run(1'b1)
+        ,.ltl0c6lw(monitor_o[129]) 
+        ,.ltl1c6lw(monitor_o[130]) 
+        ,.ltl2c6lw(monitor_o[131]) 
+        ,.ltl3c6lw(monitor_o[132]) 
+        ,.ltl4c6lw(monitor_o[133]) 
+        ,.ltl5c6lw(monitor_o[134]) 
+        ,.ltl6c6lw(monitor_o[135]) 
+        ,.ltl7c6lw(monitor_o[136]) 
+        ,.ltl8c6lw(monitor_o[137]) 
+        ,.ltl9c6lw(monitor_o[138]) 
+	);
+
+
+	Top_ModuleC7lw c15(
+	.clk(clk_i),
+	.reset(lane_reset_i),
+	.symbols(c7lw_i),
+	.run(1'b1)
+        ,.ltl0c7lw(monitor_o[139]) 
+        ,.ltl1c7lw(monitor_o[140]) 
+        ,.ltl2c7lw(monitor_o[141]) 
+        ,.ltl3c7lw(monitor_o[142]) 
+        ,.ltl4c7lw(monitor_o[143]) 
+        ,.ltl5c7lw(monitor_o[144]) 
+        ,.ltl6c7lw(monitor_o[145]) 
+        ,.ltl7c7lw(monitor_o[146]) 
+        ,.ltl8c7lw(monitor_o[147]) 
+        ,.ltl9c7lw(monitor_o[148]) 
+	);
+
 endmodule

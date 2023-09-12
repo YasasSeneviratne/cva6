@@ -111,7 +111,8 @@ package cva6_config_pkg;
 //todo add vartable for runtime monitoring
     localparam CVA6ConfigRMLanes = 8; //should be power of 2
     localparam CVA6ConfigRMevants = 32; 
-    localparam CVA6ConfigRMrules = 96; //Must be 32 bit alligned 
+    localparam CVA6ConfigRMrules = 160; //Must be 32 bit alligned 
+    localparam CVA6ConfigRMnumIns = 2; //Must be 32 bit alligned 
 
 
 endpackage
