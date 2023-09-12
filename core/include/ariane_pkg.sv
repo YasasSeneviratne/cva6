@@ -428,21 +428,36 @@ package ariane_pkg;
     localparam int unsigned RM_NUM_LANES = cva6_config_pkg::CVA6ConfigRMLanes;
     localparam int unsigned RM_NUM_EVENTS = cva6_config_pkg::CVA6ConfigRMevants;
     localparam int unsigned RM_NUM_RULES = cva6_config_pkg::CVA6ConfigRMrules;
+    localparam int unsigned RM_NUM_MONITOR_INS = cva6_config_pkg::CVA6ConfigRMnumIns;
 
+    typedef enum logic [$clog2(RM_NUM_MONITOR_INS)-1:0] {
+      LW_RM,
+      SW_RM
+    } monitored_itype;
     
     typedef struct packed {
-        logic [$clog2(RM_NUM_LANES)-1:0]     	lane;       	// Runtime monitor lane the instruction events need to be forwarded to
+        logic [$clog2(RM_NUM_LANES)-1:0]     	                lane0;       	// Runtime monitor lane the instruction events need to be forwarded to
+        logic [$clog2(RM_NUM_LANES)-1:0]     	                lane1;       	// We need two lanes when we monitor multiple instructions to ensure transitivity
+        logic                                                   two_lane;       // indicate if the instruction is in two lanes
         logic 			   				monitor_ins;    // if this is a monitored instruction?
 	logic							reset_lane;     // reset lane
+        monitored_itype				     	        itype;       	// tracks the instruction type 
+        logic 	                                                last_ins;
 	logic [riscv::VLEN-1:0] pc;     // foe debuging
+        logic [31:0] tmp_cnt;
     } runtime_monitor_ctrl;
 	
     
     typedef struct packed {
         logic 			   				probe_val;    // if this is a monitored instruction?
-        logic [$clog2(RM_NUM_LANES)-1:0]  				lane;    // if this is a monitored instruction?
+        logic [$clog2(RM_NUM_LANES)-1:0]  			lane0;    // if this is a monitored instruction?
+        logic [$clog2(RM_NUM_LANES)-1:0]  			lane1;
+        logic                                                   two_lane;       // indicate if the instruction is in two lanes
 	logic							reset_lane;     // reset lane
+        logic                                                   reset_type;     // indicate if interupt reset or commit reset
+        monitored_itype   	        itype;       	// tracks the instruction type
     } lane_ctrl;
+
 
     // ---------------
     // EX Stage

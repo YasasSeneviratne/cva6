@@ -1,7 +1,8 @@
 module rm_tb_top #(
-	parameter NUM_EVENTS	= 6,
-	parameter NUM_LANES	= 4,
-	parameter NUM_RULES	= 5
+	parameter NUM_EVENTS		= 	8, //Do not change parameters
+	parameter NUM_LANES		= 	7,
+	parameter NUM_RULES		= 	10,
+	parameter NUM_MONITORED_INS     =       2
 	)(
 	input 				clk_i,
 	input 				rst_ni_tb,
@@ -10,50 +11,27 @@ module rm_tb_top #(
 	input [riscv::VLEN-1:0]	    	pc_i_tb,
 	input  				enque_ins_tb,
 	input [6:0]			opcode_i_tb,
-
-	output logic [NUM_EVENTS-1:0]	lane_vector_0,
-	output logic [NUM_EVENTS-1:0]	lane_vector_1,
-	output logic [NUM_EVENTS-1:0]	lane_vector_2,
-	output logic [NUM_EVENTS-1:0]	lane_vector_3,
-	
-	output logic [NUM_RULES-1:0]	monitor_o_0,
-	output logic [NUM_RULES-1:0]	monitor_o_1,
-	output logic [NUM_RULES-1:0]	monitor_o_2,
-	output logic [NUM_RULES-1:0]	monitor_o_3,
-	
+        output logic [NUM_EVENTS-1:0][NUM_MONITORED_INS-1:0][NUM_LANES-1:0]    lane_vector,
+        output logic [NUM_LANES-1: 0][NUM_RULES-1:0]    monitor_o, 
 	output logic [NUM_LANES-1:0]   lane_reset,
-	output logic [NUM_LANES-1:0]   lane_reset_0,
-	output logic [NUM_LANES-1:0]   lane_reset_1,
-	output logic [NUM_LANES-1:0]   lane_reset_2,
-	output logic [NUM_LANES-1:0]   lane_reset_3
+        output int num_events,
+        output int num_lanes,
+        output int num_rules,
+        output int test_type
 	);
+
+        assign num_events = NUM_EVENTS;
+        assign num_lanes = NUM_LANES;
+        assign num_rules = NUM_RULES;
+        assign test_type = 1; 
 
 	ariane_pkg::lane_ctrl [NUM_EVENTS-1: 0]        rm_event_o;
 
 	ariane_pkg::runtime_monitor_ctrl	[NUM_EVENTS-1:0] rm_cnt;
 	ariane_pkg::runtime_monitor_ctrl	rm_cnt_o;
 
-	logic [NUM_LANES-1: 0][NUM_RULES-1:0]	monitor_o;
-	logic [NUM_EVENTS-1:0][NUM_LANES-1:0]	lane_vector;
-	//logic [NUM_LANES-1:0]			lane_reset;
 
 
-	//--------- SIMULATION SUPPORT---------------
-	//Indexing not supported in verilator :(
-	assign lane_vector_0 = lane_vector[0];
-	assign lane_vector_1 = lane_vector[1];
-	assign lane_vector_2 = lane_vector[2];
-	assign lane_vector_3 = lane_vector[3];
-
-	assign monitor_o_0 = monitor_o[0];
-	assign monitor_o_1 = monitor_o[1];
-	assign monitor_o_2 = monitor_o[2];
-	assign monitor_o_3 = monitor_o[3];
-
-	assign lane_reset_0 = lane_reset[0];	
-	assign lane_reset_1 = lane_reset[1];	
-	assign lane_reset_2 = lane_reset[2];	
-	assign lane_reset_3 = lane_reset[3];	
 	//Input sygnals must be sunchronoized to observe correct behaviour
 
 	logic				rst_ni;
@@ -78,25 +56,37 @@ module rm_tb_top #(
 			rm_cnt <= '0;
 		end 
 		else begin
-			for (int i=0; i<4; i++) begin
+			for (int i=0; i<6; i++) begin
 				rm_cnt[i+1] <= rm_cnt[i];
 			end
 			rm_cnt[0] <= rm_cnt_o;
 		end		
 	end
-
+        //pipeline architecture
+        //
+        //   stage0    stage1    stage2      stage3      stage4       stage5
+        //                 
+        //   | edA |                         | edE |
+        //             | edC |   | edD |                 | edG |      | edH |
+        //   | edB |                         | edF |
+        // 
+ 
 
 	// Event detectors
 
 	//Stage 0
 	rm_event_detector #(
 	.NUM_VARS(1),
-	.NUM_LANES
+	.NUM_LANES,
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(0)
 	)
 	edA (
 	.signal(signal[0]),
 	.ref_val(1'b1),
 	.rm_cnt_i(rm_cnt[0]),
+        .leaf_reset_trigger(1'b0),
+	.reset_itypes(1'b0),
 	.lane_cnt_o(rm_event_o[0]),
 	.reset_lane_i(reset_lane_i[0])
 	);	
@@ -104,12 +94,16 @@ module rm_tb_top #(
 		
 	rm_event_detector #(
 	.NUM_VARS(1),
-	.NUM_LANES
+	.NUM_LANES,
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(0)
 	)
 	edB (
 	.signal(signal[1]),
 	.ref_val(1'b1),
 	.rm_cnt_i(rm_cnt[0]),
+        .leaf_reset_trigger(1'b0),
+	.reset_itypes(1'b0),
 	.lane_cnt_o(rm_event_o[1]),
 	.reset_lane_i(reset_lane_i[0])
 	);	
@@ -117,12 +111,16 @@ module rm_tb_top #(
 	//Stage 1
 	rm_event_detector #(
 	.NUM_VARS(1),
-	.NUM_LANES
+	.NUM_LANES,
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(0)
 	)
 	edC (
 	.signal(signal[2]),
 	.ref_val(1'b1),
 	.rm_cnt_i(rm_cnt[1]),
+        .leaf_reset_trigger(1'b0),
+	.reset_itypes(1'b0),
 	.lane_cnt_o(rm_event_o[2]),
 	.reset_lane_i(reset_lane_i[1])
 	);	
@@ -130,12 +128,16 @@ module rm_tb_top #(
 	//Stage 2
 	rm_event_detector #(
 	.NUM_VARS(1),
-	.NUM_LANES
+	.NUM_LANES,
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(0)
 	)
 	edD (
 	.signal(signal[3]),
 	.ref_val(1'b1),
 	.rm_cnt_i(rm_cnt[2]),
+        .leaf_reset_trigger(1'b0),
+	.reset_itypes(1'b0),
 	.lane_cnt_o(rm_event_o[3]),
 	.reset_lane_i(reset_lane_i[2])
 	);
@@ -143,12 +145,16 @@ module rm_tb_top #(
 	//Stage 3
 	rm_event_detector #(
 	.NUM_VARS(1),
-	.NUM_LANES
+	.NUM_LANES,
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(0)
 	)
 	edE (
 	.signal(signal[4]),
 	.ref_val(1'b1),
 	.rm_cnt_i(rm_cnt[3]),
+        .leaf_reset_trigger(1'b1),
+	.reset_itypes(1'b0),
 	.lane_cnt_o(rm_event_o[4]),
 	.reset_lane_i(reset_lane_i[3])
 	);
@@ -156,14 +162,51 @@ module rm_tb_top #(
 	rm_event_detector #(
 	.NUM_VARS(1),
 	.NUM_LANES,
-	.LEAF_EVENT(1)
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(0)
 	)
 	edF (
 	.signal(signal[5]),
 	.ref_val(1'b1),
 	.rm_cnt_i(rm_cnt[3]),
+        .leaf_reset_trigger(1'b1),
+	.reset_itypes(1'b0),
 	.lane_cnt_o(rm_event_o[5]),
 	.reset_lane_i(reset_lane_i[3])
+	);	
+
+	rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES,
+	.LEAF_EVENT(1),
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(1)
+	)
+	edG (
+	.signal(signal[6]),
+	.ref_val(1'b1),
+	.rm_cnt_i(rm_cnt[4]),
+        .leaf_reset_trigger(1'b1),
+	.reset_itypes(ariane_pkg::LW_RM),
+	.lane_cnt_o(rm_event_o[6]),
+	.reset_lane_i(reset_lane_i[4])
+	);	
+
+	rm_event_detector #(
+	.NUM_VARS(1),
+	.NUM_LANES,
+	.LEAF_EVENT(1),
+	.NUM_MONITORED_INS(2),
+	.NUM_INS_WITH_THIS_LEAF(1)
+	)
+	edH (
+	.signal(signal[7]),
+	.ref_val(1'b1),
+	.rm_cnt_i(rm_cnt[5]),
+        .leaf_reset_trigger(1'b1),
+	.reset_itypes(ariane_pkg::SW_RM),
+	.lane_cnt_o(rm_event_o[7]),
+	.reset_lane_i(reset_lane_i[5])
 	);	
 
 	//-----------------------------------------

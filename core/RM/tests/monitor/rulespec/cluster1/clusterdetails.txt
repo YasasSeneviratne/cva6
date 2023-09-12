@@ -1,0 +1,3 @@
+B, C 	ltl0
+C, D 	ltl1
+A, B 	ltl2
