@@ -49,9 +49,12 @@ if __name__ == '__main__':
             for lval in lines:
                 line_num = line_num + 1;
                 opval = int(lval.strip(),16)
+                opval = opval >> 78
                 if(opval == 0):
                     continue
                 idx = 0
+                #if(opval != 0x00003f100003000010000000 and opval !=0):
+                #    print(hex(opval))
                 while opval !=0:
                     if(opval & 1):
                         key = (all_rules[idx][0],all_rules[idx][1])
