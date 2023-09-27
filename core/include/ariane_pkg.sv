@@ -438,12 +438,14 @@ package ariane_pkg;
     typedef struct packed {
         logic [$clog2(RM_NUM_LANES)-1:0]     	                lane0;       	// Runtime monitor lane the instruction events need to be forwarded to
         logic [$clog2(RM_NUM_LANES)-1:0]     	                lane1;       	// We need two lanes when we monitor multiple instructions to ensure transitivity
+        logic [$clog2(RM_NUM_LANES)-1:0]     	                idx;     
+        logic [$clog2(RM_NUM_LANES)-1:0]     	                p_idx;          //parent instruction index
         logic                                                   two_lane;       // indicate if the instruction is in two lanes
         logic 			   				monitor_ins;    // if this is a monitored instruction?
 	logic							reset_lane;     // reset lane
         monitored_itype				     	        itype;       	// tracks the instruction type 
         logic 	                                                last_ins;
-	logic [riscv::VLEN-1:0] pc;     // foe debuging
+	logic [riscv::VLEN-1:0] pc;     // for debuging
         logic [31:0] tmp_cnt;
     } runtime_monitor_ctrl;
 	
@@ -452,6 +454,7 @@ package ariane_pkg;
         logic 			   				probe_val;    // if this is a monitored instruction?
         logic [$clog2(RM_NUM_LANES)-1:0]  			lane0;    // if this is a monitored instruction?
         logic [$clog2(RM_NUM_LANES)-1:0]  			lane1;
+        logic [$clog2(RM_NUM_LANES)-1:0]  			idx;
         logic                                                   two_lane;       // indicate if the instruction is in two lanes
 	logic							reset_lane;     // reset lane
         logic                                                   reset_type;     // indicate if interupt reset or commit reset

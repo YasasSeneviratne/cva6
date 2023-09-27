@@ -84,6 +84,7 @@ module rm_event_detector#(
 	assign lane_cnt_o.probe_val 	= probe_val_o;
 	assign lane_cnt_o.lane0		= rm_cnt_i.lane0;
 	assign lane_cnt_o.lane1		= rm_cnt_i.lane1;
+	assign lane_cnt_o.idx		= rm_cnt_i.idx;
 	assign lane_cnt_o.two_lane      = rm_cnt_i.two_lane;
 	assign lane_cnt_o.reset_lane	= reset_o;
         assign lane_cnt_o.itype         = rm_cnt_i.itype;

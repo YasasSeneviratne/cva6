@@ -131,7 +131,10 @@ module rm_tb_top #(
 	.NUM_EVENTS
 	)
 	router (
+        .clk_i,
+        .rst_ni,
 	.events_i	(rm_event_o),
+        .monitor_i(rm_cnt_o),
 	.lane_vector_o (lane_vector),
 	.lane_reset_o (lane_reset)
 	);

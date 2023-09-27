@@ -29,6 +29,7 @@ module rm_lane_allocator#(
 	input  logic [riscv::VLEN-1:0]    		pc_i,
 	input  logic                         		entry_queued_i, 
 	input ariane_pkg::lane_ctrl	[NUM_EVENTS-1:0]	reset_monitor, //reset monitor ctrl
+        input logic [NUM_LANES-1:0]                     lane_reset_i,
 	input logic					flush_i,	
 	//input 						commit_ack,
 	output ariane_pkg::runtime_monitor_ctrl		monitor_o	
@@ -55,6 +56,8 @@ module rm_lane_allocator#(
 
 	assign monitor_o.lane0 			= lane0_o;//(some_lane_reset  && monitor && &alloc_mem)? nxt_reset_lane_mask: ((monitor)? lane_o_00: '0);
 	assign monitor_o.lane1 			= lane1_o;
+	assign monitor_o.idx 			= (has_01_lane && nxt_reset_lane_mask[lane_o_01])? lane_o_01: lane_o_00;
+	assign monitor_o.p_idx 			= lane_o_01;
         assign monitor_o.two_lane               = (has_01_lane && ~nxt_reset_lane_mask[lane_o_01]) ; // if the allocation is happaning to 1st location then that instrucion will be in two lanes
 	assign monitor_o.monitor_ins 		= monitor;     
 	assign monitor_o.pc 			= pc_i;     
@@ -73,6 +76,8 @@ module rm_lane_allocator#(
         assign lane0_o = (monitor && has_01_lane)? lane_o_01 : ((monitor)? lane_o_00 : '0)  ;
         assign lane1_o = (monitor && has_01_lane)? lane_o_00 : '0;
         assign two_lane_o = (monitor && has_01_lane)? 1'b1 : 1'b0;
+
+        assign	nxt_reset_lane_mask = lane_reset_i;
 
 	always_comb begin
 	//check if the instuction is monitored and identify instruction type
@@ -111,22 +116,24 @@ module rm_lane_allocator#(
         // reset handling
                 nxt_reset_lane = '0;
 		for(int i=0; i<NUM_EVENTS; i++) begin
-			if(reset_monitor[i].reset_lane) begin
-                                nxt_reset_lane = reset_monitor[i].lane0;
+			//if(reset_monitor[i].reset_lane) begin
+			if(lane_reset_i[i]) begin
+                                //nxt_reset_lane = reset_monitor[i].lane0;
+                                nxt_reset_lane = i;
 				break;
 			end	
 		end
 
-		nxt_reset_lane_mask = '0;
-		for(int i=0; i<NUM_EVENTS; i++) begin
-			if(reset_monitor[i].reset_lane) begin
-                                if(reset_monitor[i].two_lane) begin
-				nxt_reset_lane_mask[reset_monitor[i].lane1] = 1'b1;
-                                end else  begin
-				nxt_reset_lane_mask[reset_monitor[i].lane0] = 1'b1;
-                                end
-			end	
-		end
+//		nxt_reset_lane_mask = '0;
+//		for(int i=0; i<NUM_EVENTS; i++) begin
+//			if(reset_monitor[i].reset_lane) begin
+//                                if(reset_monitor[i].two_lane) begin
+//				nxt_reset_lane_mask[reset_monitor[i].lane1] = 1'b1;
+//                                end else  begin
+//				nxt_reset_lane_mask[reset_monitor[i].lane0] = 1'b1;
+//                                end
+//			end	
+//		end
 
                 all_lanes_occupied = 1'b1;
                 for(int i=0; i<NUM_LANES; i++) begin
@@ -143,26 +150,22 @@ module rm_lane_allocator#(
 			end
 		end else begin
                         tmp_cnt <= tmp_cnt + 32'd1;
-			for(int i=0; i<NUM_EVENTS; i++) begin
-				if (reset_monitor[i].reset_lane) begin
-                                        //if(reset_monitor[i].reset_type == 0) begin
+			//for(int i=0; i<NUM_EVENTS; i++) begin
+			for(int i=0; i<NUM_LANES; i++) begin
+				//if (reset_monitor[i].reset_lane) begin
+				if ( lane_reset_i[i]) begin
+
+
+                                        //if(reset_monitor[i].two_lane) begin
+					//	alloc_mem[reset_monitor[i].lane1] 	<= '0;
+				        //	pc_mem[reset_monitor[i].lane1]		<= '0;
+					//end 
+					//else begin
 					//alloc_mem[reset_monitor[i].lane0] 	<= '0;
 				        //pc_mem[reset_monitor[i].lane0]		<= '0;
-                                        //end else begin
-					//alloc_mem[reset_monitor[i].lane1] 	<= '0;
-				        //pc_mem[reset_monitor[i].lane1]		<= '0;
-
                                         //end
-
-
-                                        if(reset_monitor[i].two_lane) begin
-						alloc_mem[reset_monitor[i].lane1] 	<= '0;
-				        	pc_mem[reset_monitor[i].lane1]		<= '0;
-					end 
-					else begin
-					alloc_mem[reset_monitor[i].lane0] 	<= '0;
-				        pc_mem[reset_monitor[i].lane0]		<= '0;
-                                        end
+					alloc_mem[i] 	<= '0;
+				        pc_mem[i]		<= '0;
                                 end
 			end
 

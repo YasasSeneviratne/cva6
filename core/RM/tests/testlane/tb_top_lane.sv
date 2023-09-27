@@ -1,6 +1,6 @@
 module lanewrap#(
 	parameter NUM_EVENTS    =      6, 
-	parameter NUM_RULES    =      5 
+	parameter NUM_RULES    =      10 
 	)(
 	input						clk_i,
 	input  [NUM_EVENTS-1:0]			lane_vector_i,

@@ -107,9 +107,12 @@ int main(int argc, char** argv, char** env) {
 	//Verilog model input randomization
 	dut->pc_i_tb 		+= 1;
 	dut->signal_tb 		= unsigned(rand());
+        //if(sim_time == 18)
+	//dut->reset_lane_i_tb 	= 0b10;//unsigned(rand());//0; 
+        //else
 	dut->reset_lane_i_tb 	= unsigned(rand());//0; 
-	dut->enque_ins_tb 	= unsigned(rand() % 2); //1
-	dut->opcode_i_tb 	= unsigned(rand() % 36); //3
+	dut->enque_ins_tb 	= 1;//unsigned(rand() % 2); //1
+	dut->opcode_i_tb 	= 3;//unsigned(rand() % 36); //3
 	
 	//verilog signal value extraction for cpp simulation
 	//---------------------------------------------
