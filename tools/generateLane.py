@@ -4,7 +4,7 @@ import sys
 import os
 
 def usage():
-    usage = "./generateLane.py <generated rm path> "
+    usage = "./generateLane.py <generated rm path> <clustered?: 1 or 0> <filename suffix>"
     return usage
 
 def getidx(symbol):
@@ -77,32 +77,63 @@ def getidx(symbol):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 4:
         print(usage())
         exit(-1)
 
     generated_folder=sys.argv[1]
+    clustered = int(sys.argv[2])
+    filename_suff = sys.argv[3]
     if not os.path.exists(generated_folder):
         print(generated_folder+" does not exist!!")
         exit(-1)
     iterator = 0
-    while True:
-        cluster = generated_folder+"/cluster"+str(iterator)
-        if not os.path.exists(cluster):
-            break;
+    if clustered:
+        while True:
+            cluster = generated_folder+"/cluster"+str(iterator)
+            if not os.path.exists(cluster):
+                print(cluster+" does not exist!!")
+                break;
 
-        with open(cluster+"/ltl0c"+str(iterator)+".out") as f:
-            content = f.readlines()
-            free_variables = []
-            for line in content:
-                if 'DFA for formula with free variables' in line:
-                    free_variables = line.split(':')[1].strip().split()
-                    break;
+            with open(cluster+"/ltl0c"+str(iterator)+".out") as f:
+                content = f.readlines()
+                free_variables = []
+                for line in content:
+                    if 'DFA for formula with free variables' in line:
+                        free_variables = line.split(':')[1].strip().split()
+                        break;
    
-        op_string = "assign c"+str(iterator)+"_i = {"
-        for var in free_variables:
-            getidx(var)   
-            op_string = op_string +"lane_vector_i["+str(getidx(var))+"],"
-        op_string = op_string.rstrip(op_string[-1])+"};" 
-        print(op_string)
-        iterator= iterator + 1 
+            op_string = "assign c"+str(iterator)+"_i = {"
+            for var in free_variables:
+                label = var.split("_",1)[1]
+                exit(0)
+                getidx(var)   
+                op_string = op_string +"lane_vector_i["+str(getidx(var))+"],"
+            op_string = op_string.rstrip(op_string[-1])+"};" 
+            print(op_string)
+            iterator= iterator + 1
+    else:
+        while True:
+            file_name = generated_folder+"/ltl0c"+str(iterator)+filename_suff+".out"
+            if not os.path.exists(file_name):
+                print(file_name+" does not exist!!") 
+                break;
+
+            with open(file_name) as f:
+                content = f.readlines()
+                free_variables = []
+                for line in content:
+                    if 'DFA for formula with free variables' in line:
+                        free_variables = line.split(':')[1].strip().split()
+                        break;
+   
+            op_string = "assign c"+str(iterator)+"_i = {"
+            op_varname_order = "// "
+            for var in free_variables:
+                label = var.split("_",1)[1]
+                op_string = op_string +"lane_vector_i["+str(getidx(label))+"],"
+                op_varname_order = op_varname_order + var + ", "
+            op_string = op_string.rstrip(op_string[-1])+"};" 
+            print(op_string)
+            print(op_varname_order)
+            iterator= iterator + 1

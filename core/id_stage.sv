@@ -42,7 +42,9 @@ module id_stage #(
     input  logic                          tw_i,
     input  logic                          tsr_i,
     // for RM
-    input  ariane_pkg::lane_ctrl [ariane_pkg::RM_NUM_EVENTS-1:0]	reset_monitor
+    input  ariane_pkg::lane_ctrl [ariane_pkg::RM_NUM_EVENTS-1:0]	reset_monitor,
+    output [ariane_pkg::RM_NUM_LANES-1:0] hault_lane_o,
+    output [ariane_pkg::RM_NUM_LANES-1:0] lane_reset_o
 );
     // ID/ISSUE register stage
     typedef struct packed {
@@ -125,7 +127,8 @@ module id_stage #(
 	.entry_queued_i	 	 ( issue_en),
         .reset_monitor,
 	.flush_i,
-        //.commit_ack              ( ),
+	.hault_lane_o,
+        .lane_reset_o,
         .monitor_o		 
     );
 

@@ -68,6 +68,7 @@ module lsu_bypass import ariane_pkg::*; #(
         if (pop_ld_i) begin
             // invalidate the result
             mem_n[read_pointer_q].valid = 1'b0;
+            mem_n[read_pointer_q] = '0;
             read_pointer++;
             status_cnt--;
         end
@@ -75,6 +76,7 @@ module lsu_bypass import ariane_pkg::*; #(
         if (pop_st_i) begin
             // invalidate the result
             mem_n[read_pointer_q].valid = 1'b0;
+            mem_n[read_pointer_q] = '0;
             read_pointer++;
             status_cnt--;
         end

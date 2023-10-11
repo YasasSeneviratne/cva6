@@ -24,38 +24,33 @@ module rm_event_router#(
         parameter NUM_MONITORED_INS     = 	2
 	)(
 	input ariane_pkg::lane_ctrl [NUM_EVENTS-1:0]	events_i,
-	output logic [NUM_LANES-1:0][NUM_MONITORED_INS-1:0][NUM_EVENTS-1:0]	lane_vector_o,
-	output logic [NUM_LANES-1:0]			lane_reset_o
+	output logic [NUM_LANES-1:0][NUM_EVENTS-1:0]	lane_vector_o0,
+	output logic [NUM_LANES-1:0][NUM_EVENTS-1:0]	lane_vector_o1,
+        output logic [NUM_LANES-1:0][$clog2(NUM_EVENTS)-1:0]    itype1_o,
+        output logic [NUM_LANES-1:0]                    valid0_o,
+        output logic [NUM_LANES-1:0]                    valid1_o
 	);
 
 	always_comb begin
-		lane_vector_o 	= '0;
-		lane_reset_o	= '0;
-
+		lane_vector_o0 	= '0;
+		lane_vector_o1 	= '0;
+                itype1_o        = '0;
+                valid0_o        = '0; 
+                valid1_o        = '0;
+                
 		for(int i=0; i<NUM_EVENTS; i++) begin
-			//lane_vector_o[events_i[i].lane0][events_i[i].itype][i] = events_i[i].probe_val;  
-			////lane_reset_o[events_i[i].lane0] = lane_reset_o[events_i[i].lane0] | events_i[i].reset_lane;
-			//lane_reset_o[events_i[i].lane0] = lane_reset_o[events_i[i].lane0] | events_i[i].reset_lane;
 			if(events_i[i].two_lane) begin
-                        	lane_vector_o[events_i[i].lane1][events_i[i].itype][i] = events_i[i].probe_val; 
-                                //if(events_i[i].reset_type == 0) begin 
-				//lane_reset_o[events_i[i].lane0] = lane_reset_o[events_i[i].lane0] | events_i[i].reset_lane;
-		                //end else begin
-				lane_reset_o[events_i[i].lane1] = lane_reset_o[events_i[i].lane1] | events_i[i].reset_lane;
-                                //end
-                         	//lane_vector_o[events_i[i].lane0][events_i[i].itype][i] = '0;  
-			        //lane_reset_o[events_i[i].lane0] = 1'b0;
-                        
-
+                        	lane_vector_o0[events_i[i].lane0][i] = events_i[i].probe_val; 
+                        	lane_vector_o1[events_i[i].lane1][i] = events_i[i].probe_val;
+                                
+                                itype1_o[events_i[i].lane1]       = events_i[i].itype;
+                                valid0_o[events_i[i].lane0]           = valid0_o[events_i[i].lane0] |  events_i[i].probe_val;
+                                valid1_o[events_i[i].lane1]           = valid1_o[events_i[i].lane1] | events_i[i].probe_val;
+                                
                         end 
                         else begin 
-				//NOTE remove else for inter instruction
-				lane_vector_o[events_i[i].lane0][events_i[i].itype][i] = events_i[i].probe_val;  
-                                //if(events_i[i].reset_type == 0) begin 
-				lane_reset_o[events_i[i].lane0] = lane_reset_o[events_i[i].lane0] | events_i[i].reset_lane;
-		                //end else begin
-				//lane_reset_o[events_i[i].lane1] = lane_reset_o[events_i[i].lane1] | events_i[i].reset_lane;
-                                //end
+                        	lane_vector_o0[events_i[i].lane0][i] = events_i[i].probe_val; 
+                                valid0_o[events_i[i].lane0]           = valid0_o[events_i[i].lane0] | events_i[i].probe_val;
                         end
 		end
 	end

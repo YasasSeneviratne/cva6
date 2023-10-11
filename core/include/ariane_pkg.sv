@@ -431,8 +431,9 @@ package ariane_pkg;
     localparam int unsigned RM_NUM_MONITOR_INS = cva6_config_pkg::CVA6ConfigRMnumIns;
 
     typedef enum logic [$clog2(RM_NUM_MONITOR_INS)-1:0] {
-      LW_RM,
-      SW_RM
+      //LW_RM,
+      SW_RM,
+      LW_RM
     } monitored_itype;
     
     typedef struct packed {
@@ -456,6 +457,7 @@ package ariane_pkg;
 	logic							reset_lane;     // reset lane
         logic                                                   reset_type;     // indicate if interupt reset or commit reset
         monitored_itype   	        itype;       	// tracks the instruction type
+	logic [riscv::VLEN-1:0] pc;     // foe debuging
     } lane_ctrl;
 
 

@@ -426,8 +426,13 @@ module cva6 import ariane_pkg::*; #(
   //---------------
   lane_ctrl [RM_NUM_EVENTS-1: 0]		rm_event_o; 
 //  logic [RM_NUM_LANES-1: 0][RM_NUM_RULES-1:0]   	monitor_o;
-  logic [RM_NUM_EVENTS-1:0][RM_NUM_LANES-1:0]   	lane_vector;
+  logic [RM_NUM_EVENTS-1:0][RM_NUM_LANES-1:0]   	lane_vector_0;
+  logic [RM_NUM_EVENTS-1:0][RM_NUM_LANES-1:0]   	lane_vector_1;
   logic [RM_NUM_LANES-1:0]   			lane_reset; 
+  logic [RM_NUM_LANES-1:0][$clog2(RM_NUM_EVENTS)-1:0]    itype1;
+  logic [RM_NUM_LANES-1:0]                    valid0; 
+  logic [RM_NUM_LANES-1:0]                    valid1;
+  logic [RM_NUM_LANES-1:0]                    hault_lane;
 
   // Accelerator port
   logic [63:0]       inval_addr;
@@ -492,7 +497,10 @@ module cva6 import ariane_pkg::*; #(
     .tvm_i                      ( tvm_csr_id                 ),
     .tw_i                       ( tw_csr_id                  ),
     .tsr_i                      ( tsr_csr_id                 ),
-    .reset_monitor		( rm_event_o		     )
+    //Runtime monitoring related
+    .reset_monitor		( rm_event_o		     ),
+    .lane_reset_o(lane_reset),
+    .hault_lane_o(hault_lane)
   );
 
   logic [NrWbPorts-1:0][TRANS_ID_BITS-1:0] trans_id_ex_id;
@@ -2233,17 +2241,18 @@ rm_event_detector #(
 //    1'b1;
 
 
- 
-
 
 rm_event_router #(
 	.NUM_LANES(RM_NUM_LANES),
 	.NUM_EVENTS(RM_NUM_EVENTS)
 	)
 	event_router (
-	.events_i	( rm_event_o),
-	.lane_vector_o	( lane_vector),
-	.lane_reset_o	( lane_reset)
+	.events_i( rm_event_o),
+	.lane_vector_o0(lane_vector_0),
+        .lane_vector_o1(lane_vector_1),
+        .itype1_o(itype1),
+        .valid0_o(valid0),
+        .valid1_o(valid1)
 	);
 
 rm_monitor  #( 
@@ -2254,8 +2263,16 @@ rm_monitor  #(
         rm(
         .clk_i, 
         .rst_ni,
-        .lane_vector_i(lane_vector),
+        .lane_vector_i0(lane_vector_0),
+        .lane_vector_i1(lane_vector_1),
         .lane_reset_i(lane_reset),
+        .lane0_from_alloc(id_stage_i.monitor_o.lane0),
+        .itype0_from_alloc(id_stage_i.monitor_o.itype),
+        .valid0_from_alloc(id_stage_i.monitor_o.monitor_ins),
+        .itype1(itype1),
+        .valid1(valid1),
+        .valid0(valid0),
+        .hault(hault_lane),
         .monitor_o 
         );
 

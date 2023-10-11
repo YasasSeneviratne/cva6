@@ -117,6 +117,7 @@ module store_buffer import ariane_pkg::*; #(
         if (commit_i) begin
             // invalidate
             speculative_queue_n[speculative_read_pointer_q].valid = 1'b0;
+            speculative_queue_n[speculative_read_pointer_q] = '0;
             // advance the read pointer
             speculative_read_pointer_n = speculative_read_pointer_q + 1'b1;
             speculative_status_cnt--;

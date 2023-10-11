@@ -164,7 +164,7 @@ module ariane_testharness #(
   
   //logic [ariane_pkg::RM_NUM_LANES-1: 0][ariane_pkg::RM_NUM_RULES-1:0]           monitor_o;
   //assign monitor_o = i_ariane.i_cva6.monitor_o;
-  assign lane_allocation  = i_ariane.i_cva6.id_stage_i.rm_alloc.alloc_mem;
+  assign lane_allocation  = i_ariane.i_cva6.id_stage_i.rm_alloc.alloc_mem_q;
 
   // SiFive's SimJTAG Module
   // Converts to DPI calls
