@@ -95,7 +95,7 @@ if __name__ == '__main__':
                 print(cluster+" does not exist!!")
                 break;
 
-            with open(cluster+"/ltl0c"+str(iterator)+".out") as f:
+            with open(cluster+"/ltl0c"+str(iterator)+filename_suff+".out") as f:
                 content = f.readlines()
                 free_variables = []
                 for line in content:
@@ -106,7 +106,6 @@ if __name__ == '__main__':
             op_string = "assign c"+str(iterator)+"_i = {"
             for var in free_variables:
                 label = var.split("_",1)[1]
-                exit(0)
                 getidx(var)   
                 op_string = op_string +"lane_vector_i["+str(getidx(var))+"],"
             op_string = op_string.rstrip(op_string[-1])+"};" 
